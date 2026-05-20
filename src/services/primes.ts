@@ -4,14 +4,23 @@ import { collection, getDocs } from 'firebase/firestore';
 
 export const getPrimes = async () => {
   try {
-    const querySnapshot = await getDocs(collection(db, "primes"));
+    const primesRef = collection(db, "primes"); // ✅ Vérifie que le nom de la collection est exact
+    const querySnapshot = await getDocs(primesRef);
+
+    if (querySnapshot.empty) {
+      console.warn("Aucune prime trouvée dans la collection 'primes'.");
+      return [];
+    }
+
     const primes: any[] = [];
     querySnapshot.forEach((doc) => {
       primes.push({ id: doc.id, ...doc.data() });
     });
+
+    console.log("Primes chargées depuis Firebase:", primes); // ✅ Debug
     return primes;
   } catch (error) {
-    console.error("Erreur lors de la récupération des primes:", error);
+    console.error("Erreur Firestore dans getPrimes:", error);
     return [];
   }
 };

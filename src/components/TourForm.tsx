@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { getSaisons } from './../services/saisons';
 import { ajouterTour, mettreAJourTour } from './../services/tours';
-import { getPrimes } from './../services/primes'; // ✅ Ajout pour récupérer les primes
+import { getEntreprises } from './../services/entreprises';
+import { RDTPM_ID } from './../App';
 
 type TourFormProps = {
   onClose: () => void;
@@ -19,18 +20,26 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
   const [heureFinService, setHeureFinService] = useState<string>(tourToEdit?.heureFinService || '');
   const [lignesDestinations, setLignesDestinations] = useState<string>(tourToEdit?.lignesDestinations?.join(', ') || '');
   const [saisons, setSaisons] = useState<any[]>([]);
-  const [primes, setPrimes] = useState<any[]>([]); // ✅ État pour les primes
-  const [selectedPrimes, setSelectedPrimes] = useState<any[]>(tourToEdit?.primes || []); // ✅ Primes sélectionnées
+  const [entreprises, setEntreprises] = useState<any[]>([]);
+  const [allPrimes, setAllPrimes] = useState<any[]>([]);
+  const [selectedPrimes, setSelectedPrimes] = useState<any[]>(tourToEdit?.primes || []);
   const [isEditMode, setIsEditMode] = useState<boolean>(!!tourToEdit);
 
   useEffect(() => {
     const loadData = async () => {
-      const [saisonsData, primesData] = await Promise.all([
+      const [saisonsData, entreprisesData] = await Promise.all([
         getSaisons(),
-        getPrimes() // ✅ Charge les primes
+        getEntreprises()
       ]);
       setSaisons(saisonsData);
-      setPrimes(primesData);
+      setEntreprises(entreprisesData);
+
+      // Charge les primes de RDTPM
+      const rdpm = entreprisesData.find(e => e.id === RDTPM_ID);
+      if (rdpm?.primes) {
+        setAllPrimes(rdpm.primes);
+      }
+
       if (saisonsData.length > 0 && !saisonId) {
         setSaisonId(saisonsData[0].id);
       }
@@ -51,7 +60,8 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
       heurePriseService,
       heureFinService,
       lignesDestinations: lignesDestinations.split(',').map(l => l.trim()),
-      primes: selectedPrimes // ✅ Ajoute les primes sélectionnées
+      primes: selectedPrimes,
+      entrepriseId: RDTPM_ID // ✅ Force RDTPM
     };
 
     if (heureDepartPause) tourData.heureDepartPause = heureDepartPause;
@@ -83,7 +93,7 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
         width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto',
         color: 'white', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
       }}>
-        <h2>{isEditMode ? 'Modifier un tour' : 'Ajouter un tour'}</h2>
+        <h2>{isEditMode ? 'Modifier un tour' : 'Ajouter un tour (RDTPM)'}</h2>
         <form onSubmit={handleSubmit}>
           {/* Numéro */}
           <div style={{ marginBottom: '12px' }}>
@@ -163,18 +173,25 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
               type="text"
               value={lignesDestinations}
               onChange={(e) => setLignesDestinations(e.target.value)}
-              placeholder="Ex: Ligne 1, Ligne 2, Ligne 3"
+              placeholder="Ex: 28M puis 8M"
               style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
               required
             />
           </div>
 
-          {/* Primes (cases à cocher) */}
+          {/* Primes du tour */}
           <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes associées</label>
-            <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #444', padding: '8px', borderRadius: '4px' }}>
-              {primes.length > 0 ? (
-                primes.map((prime) => (
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes associées au tour</label>
+            <div style={{
+              maxHeight: '150px',
+              overflowY: 'auto',
+              border: '1px solid #444',
+              padding: '8px',
+              borderRadius: '4px',
+              backgroundColor: '#1a1a1a'
+            }}>
+              {allPrimes.length > 0 ? (
+                allPrimes.map((prime) => (
                   <div key={prime.id} style={{ marginBottom: '6px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
                       <input
@@ -194,7 +211,7 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
                   </div>
                 ))
               ) : (
-                <p style={{ color: '#888', fontSize: '14px' }}>Aucune prime disponible.</p>
+                <p style={{ color: '#888', fontSize: '14px' }}>Aucune prime définie pour RDTPM.</p>
               )}
             </div>
           </div>
@@ -220,3 +237,5 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
     </div>
   );
 };
+
+export default TourForm;

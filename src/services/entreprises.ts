@@ -32,3 +32,14 @@ export const supprimerEntreprise = async (id: string) => {
 export const mettreAJourEntreprise = async (id: string, entreprise: Partial<Entreprise>) => {
   await updateDoc(doc(db, "entreprises", id), entreprise);
 };
+
+export const getEntrepriseById = async (id: string) => {
+  const docRef = doc(db, "entreprises", id);
+  const docSnap = await getDoc(docRef);
+  if (docSnap.exists()) {
+    return { id: docSnap.id, ...docSnap.data() };
+  } else {
+    console.warn("Aucune entreprise trouvée avec l'ID:", id);
+    return null;
+  }
+};

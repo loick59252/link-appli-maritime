@@ -1,6 +1,5 @@
 // src/components/JourneeForm.tsx
-import { useState, useEffect } from 'react';
-import { getToursParSaison } from './../services/tours';
+import { useState, useEffect, useMemo } from 'react';
 import { getSaisons } from './../services/saisons';
 import { ajouterJournee, mettreAJourJournee } from './../services/journees';
 import { RDTPM_ID } from './../App';
@@ -17,6 +16,7 @@ type Tour = {
   id: string;
   numero: string;
   saisonId: string;
+  entrepriseId?: string;
   heurePriseService: string;
   heureDepartPause?: string;
   heureReprise?: string;
@@ -50,21 +50,22 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
   const [heureReprise, setHeureReprise] = useState<string>(journeeToEdit?.heureReprise || '');
   const [heureFinService, setHeureFinService] = useState<string>(journeeToEdit?.heureFinService || '');
   const [lignesDestinations, setLignesDestinations] = useState<string>(journeeToEdit?.lignesDestinations?.join(', ') || '');
-  const [primesSelectionnees, setPrimesSelectionnees] = useState<Prime[]>(journeeToEdit?.primes || []);
+  const [primesSelectionnees, setPrimesSelectionnees] = useState<Prime[]>([]);
   const [primesEntreprise, setPrimesEntreprise] = useState<Prime[]>([]);
+  const [primesTour, setPrimesTour] = useState<Prime[]>([]);
   const [primesSpeciales, setPrimesSpeciales] = useState<Prime[]>([]);
   const [notes, setNotes] = useState<string>(journeeToEdit?.notes || '');
   const [tourSearch, setTourSearch] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState<boolean>(!!journeeToEdit);
 
-  // Charge les saisons et les primes de l'entreprise sélectionnée
+  // Charge les saisons, tours et primes
   useEffect(() => {
     const loadData = async () => {
       try {
         const saisons = await getSaisons();
         setSaisons(saisons);
 
-        // Détermine la saison automatique en fonction de la date
+        // Détermine la saison automatique
         const dateToCheck = new Date(journeeToEdit?.date || initialDate || new Date());
         const saisonTrouvee = saisons.find(saison => {
           const debut = new Date(saison.dateDebut);
@@ -74,14 +75,18 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
 
         if (saisonTrouvee) {
           setSelectedSaisonId(saisonTrouvee.id);
-          const tours = allTours.filter(t => t.saisonId === saisonTrouvee.id)
-            .sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
+          const tours = allTours.filter(t =>
+            t.saisonId === saisonTrouvee.id &&
+            (t.entrepriseId === RDTPM_ID || !t.entrepriseId)
+          ).sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
           setTours(tours);
           setFilteredTours(tours);
         } else if (saisons.length > 0) {
           setSelectedSaisonId(saisons[0].id);
-          const tours = allTours.filter(t => t.saisonId === saisons[0].id)
-            .sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
+          const tours = allTours.filter(t =>
+            t.saisonId === saisons[0].id &&
+            (t.entrepriseId === RDTPM_ID || !t.entrepriseId)
+          ).sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
           setTours(tours);
           setFilteredTours(tours);
         }
@@ -89,10 +94,19 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
         // Charge les primes de l'entreprise sélectionnée
         if (selectedEntrepriseId) {
           const entreprise = entreprises.find(e => e.id === selectedEntrepriseId);
-          if (entreprise) setPrimesEntreprise(entreprise.primes || []);
+          if (entreprise) {
+            setPrimesEntreprise(entreprise.primes || []);
+            // ✅ NE PAS PRÉ-SÉLECTIONNER LES PRIMES DE L'ENTREPRISE
+          }
         } else if (entreprises.length > 0) {
           setSelectedEntrepriseId(entreprises[0].id);
           setPrimesEntreprise(entreprises[0].primes || []);
+          // ✅ NE PAS PRÉ-SÉLECTIONNER LES PRIMES DE L'ENTREPRISE
+        }
+
+        // Charge les primes sélectionnées depuis journeeToEdit
+        if (journeeToEdit?.primes) {
+          setPrimesSelectionnees(journeeToEdit.primes);
         }
       } catch (error) {
         console.error("Erreur de chargement:", error);
@@ -104,8 +118,10 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
   // Charge les tours quand la saison change
   useEffect(() => {
     if (selectedSaisonId) {
-      const tours = allTours.filter(t => t.saisonId === selectedSaisonId)
-        .sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
+      const tours = allTours.filter(t =>
+        t.saisonId === selectedSaisonId &&
+        (t.entrepriseId === RDTPM_ID || !t.entrepriseId)
+      ).sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
       setTours(tours);
       setFilteredTours(tours);
     }
@@ -124,7 +140,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
     }
   }, [tourSearch, tours]);
 
-  // Remplit les horaires et primes si un tour est sélectionné
+  // ✅ Charge les primes du tour sélectionné et DÉSÉLECTIONNE TOUT, puis coche UNIQUEMENT celles du tour
   useEffect(() => {
     if (selectedTourId && tours.length > 0) {
       const tour = tours.find(t => t.id === selectedTourId);
@@ -133,15 +149,25 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
         setHeureDepartPause(tour.heureDepartPause || '');
         setHeureReprise(tour.heureReprise || '');
         setHeureFinService(tour.heureFinService);
-        setLignesDestinations(tour.lignesDestinations.join(', '));
-        // Ajoute les primes du tour aux primes sélectionnées (sans doublons)
-        setPrimesSelectionnees(prev => {
-          const tourPrimesIds = new Set(tour.primes?.map(p => p.id) || []);
-          return [...prev.filter(p => !tourPrimesIds.has(p.id)), ...(tour.primes || [])];
-        });
+        setLignesDestinations(tour.lignesDestinations?.join(', ') || '');
+        setPrimesTour(tour.primes || []);
+        // ✅ DÉSÉLECTIONNE TOUTES LES PRIMES, puis coche UNIQUEMENT celles du tour
+        setPrimesSelectionnees(tour.primes || []);
       }
+    } else {
+      // ✅ Si aucun tour sélectionné, désélectionne tout
+      setPrimesTour([]);
+      setPrimesSelectionnees([]);
     }
   }, [selectedTourId, tours]);
+
+  // Fusionne primes entreprise + primes tour (sans doublons)
+  const allPrimes = useMemo(() => {
+    const primesMap = new Map<string, Prime>();
+    primesEntreprise.forEach(prime => primesMap.set(prime.id, prime));
+    primesTour.forEach(prime => primesMap.set(prime.id, prime));
+    return Array.from(primesMap.values());
+  }, [primesEntreprise, primesTour]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,7 +240,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
             />
           </div>
 
-          {/* Entreprise (affichage nom + couleur) */}
+          {/* Entreprise */}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Entreprise</label>
             <select
@@ -236,7 +262,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
             </select>
           </div>
 
-          {/* Rôle (Boutons radio) */}
+          {/* Rôle */}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Rôle</label>
             <div style={{ display: 'flex', gap: '15px' }}>
@@ -265,7 +291,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
             </div>
           </div>
 
-          {/* Section pour RDTPM: Tour */}
+          {/* Tour (uniquement pour RDTPM) */}
           {selectedEntrepriseId === RDTPM_ID && (
             <div style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Tour de service</label>
@@ -280,12 +306,11 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
                 value={selectedTourId}
                 onChange={(e) => setSelectedTourId(e.target.value)}
                 style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
-                required
               >
                 <option value="">-- Sélectionner un tour --</option>
                 {filteredTours.map((t) => (
                   <option key={t.id} value={t.id}>
-                    Tour {t.numero} - {t.lignesDestinations.join(', ')}
+                    Tour {t.numero} - {t.lignesDestinations?.join(', ') || 'Aucune ligne'}
                   </option>
                 ))}
               </select>
@@ -343,22 +368,27 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
                 type="text"
                 value={lignesDestinations}
                 onChange={(e) => setLignesDestinations(e.target.value)}
-                placeholder="Ex: Ligne 1, Ligne 2"
+                placeholder="Ex: 28M puis 8M"
                 style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
               />
             </div>
           )}
 
-          {/* Primes */}
+          {/* Primes regroupées (entreprise + tour) */}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes</label>
-
-            {/* Primes de l'entreprise */}
-            <div style={{ marginBottom: '8px' }}>
-              <strong style={{ fontSize: '14px' }}>Primes de l'entreprise :</strong>
-              <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #444', padding: '8px', borderRadius: '4px', marginTop: '4px' }}>
-                {primesEntreprise.length > 0 ? (
-                  primesEntreprise.map((prime) => (
+            <div style={{
+              maxHeight: '150px',
+              overflowY: 'auto',
+              border: '1px solid #444',
+              padding: '8px',
+              borderRadius: '4px',
+              backgroundColor: '#1a1a1a'
+            }}>
+              {allPrimes.length > 0 ? (
+                allPrimes.map((prime) => {
+                  const isFromTour = primesTour.some(p => p.id === prime.id);
+                  return (
                     <div key={prime.id} style={{ marginBottom: '6px' }}>
                       <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
                         <input
@@ -374,91 +404,71 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
                           style={{ marginRight: '6px' }}
                         />
                         {prime.nom} (+{prime.montant} €)
+                        {isFromTour && (
+                          <span style={{ marginLeft: '8px', color: '#0078d4', fontSize: '12px' }}>
+                            (Tour)
+                          </span>
+                        )}
                       </label>
                     </div>
-                  ))
-                ) : (
-                  <p style={{ color: '#888', fontSize: '14px' }}>Aucune prime définie pour cette entreprise.</p>
-                )}
-              </div>
+                  );
+                })
+              ) : (
+                <p style={{ color: '#888', fontSize: '14px' }}>
+                  {selectedEntrepriseId ? "Aucune prime définie." : "Sélectionnez une entreprise."}
+                </p>
+              )}
             </div>
-
-            {/* Primes du tour (si un tour est sélectionné) */}
-            {selectedTourId && (
-              <div style={{ marginBottom: '8px' }}>
-                <strong style={{ fontSize: '14px' }}>Primes du tour sélectionné :</strong>
-                <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #444', padding: '8px', borderRadius: '4px', marginTop: '4px' }}>
-                  {tours.find(t => t.id === selectedTourId)?.primes?.length > 0 ? (
-                    tours.find(t => t.id === selectedTourId)?.primes?.map((prime: any) => (
-                      <div key={prime.id} style={{ marginBottom: '6px' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
-                          <input
-                            type="checkbox"
-                            checked={primesSelectionnees.some(p => p.id === prime.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setPrimesSelectionnees([...primesSelectionnees, prime]);
-                              } else {
-                                setPrimesSelectionnees(primesSelectionnees.filter(p => p.id !== prime.id));
-                              }
-                            }}
-                            style={{ marginRight: '6px' }}
-                          />
-                          {prime.nom} (+{prime.montant} €)
-                        </label>
-                      </div>
-                    ))
-                  ) : (
-                    <p style={{ color: '#888', fontSize: '14px' }}>Aucune prime associée à ce tour.</p>
-                  )}
-                </div>
-              </div>
+            {selectedTourId && primesTour.length > 0 && (
+              <p style={{ marginTop: '6px', fontSize: '12px', color: '#888' }}>
+                ⚠️ Seules les primes du tour sont pré-sélectionnées.
+              </p>
             )}
+          </div>
 
-            {/* Primes spéciales */}
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes spéciales</label>
-              {primesSpeciales.map((prime, index) => (
-                <div key={index} style={{ display: 'flex', marginBottom: '8px', alignItems: 'center' }}>
-                  <input
-                    type="text"
-                    value={prime.nom}
-                    onChange={(e) => {
-                      const newPrimes = [...primesSpeciales];
-                      newPrimes[index].nom = e.target.value;
-                      setPrimesSpeciales(newPrimes);
-                    }}
-                    placeholder="Nom"
-                    style={{ flex: 1, padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px', marginRight: '4px' }}
-                  />
-                  <input
-                    type="number"
-                    value={prime.montant}
-                    onChange={(e) => {
-                      const newPrimes = [...primesSpeciales];
-                      newPrimes[index].montant = Number(e.target.value);
-                      setPrimesSpeciales(newPrimes);
-                    }}
-                    placeholder="€"
-                    style={{ width: '80px', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px', marginRight: '4px' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPrimesSpeciales(primesSpeciales.filter((_, i) => i !== index))}
-                    style={{ backgroundColor: '#ff4444', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '12px' }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setPrimesSpeciales([...primesSpeciales, { id: Date.now().toString(), nom: '', montant: 0 }])}
-                style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', fontSize: '14px', marginTop: '6px' }}
-              >
-                + Prime spéciale
-              </button>
-            </div>
+          {/* Primes spéciales */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes spéciales</label>
+            {primesSpeciales.map((prime, index) => (
+              <div key={index} style={{ display: 'flex', marginBottom: '8px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={prime.nom}
+                  onChange={(e) => {
+                    const newPrimes = [...primesSpeciales];
+                    newPrimes[index].nom = e.target.value;
+                    setPrimesSpeciales(newPrimes);
+                  }}
+                  placeholder="Nom"
+                  style={{ flex: 1, padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px', marginRight: '4px' }}
+                />
+                <input
+                  type="number"
+                  value={prime.montant}
+                  onChange={(e) => {
+                    const newPrimes = [...primesSpeciales];
+                    newPrimes[index].montant = Number(e.target.value);
+                    setPrimesSpeciales(newPrimes);
+                  }}
+                  placeholder="€"
+                  style={{ width: '80px', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px', marginRight: '4px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setPrimesSpeciales(primesSpeciales.filter((_, i) => i !== index))}
+                  style={{ backgroundColor: '#ff4444', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '12px' }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setPrimesSpeciales([...primesSpeciales, { id: Date.now().toString(), nom: '', montant: 0 }])}
+              style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', fontSize: '14px', marginTop: '6px' }}
+            >
+              + Prime spéciale
+            </button>
           </div>
 
           {/* Notes */}
@@ -494,4 +504,4 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
   );
 };
 
-export default JourneeForm; // ✅ EXPORT PAR DÉFAUT AJOUTÉ ICI
+export default JourneeForm;

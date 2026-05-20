@@ -1,7 +1,6 @@
 // src/components/EntrepriseForm.tsx
 import { useState, useEffect } from 'react';
-import { ajouterEntreprise, mettreAJourEntreprise } from './../services/entreprises';
-import { getPrimes } from './../services/primes'; // ✅ Import des primes
+import { ajouterEntreprise, mettreAJourEntreprise, getEntrepriseById } from './../services/entreprises';
 
 type EntrepriseFormProps = {
   onClose: () => void;
@@ -19,23 +18,37 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
   const [salaireMatelot, setSalaireMatelot] = useState<number>(entrepriseToEdit?.salaireMatelot || 0);
   const [salaireCapitaine, setSalaireCapitaine] = useState<number>(entrepriseToEdit?.salaireCapitaine || 0);
   const [couleur, setCouleur] = useState<string>(entrepriseToEdit?.couleur || COULEURS_DISPONIBLES[0]);
-  const [allPrimes, setAllPrimes] = useState<any[]>([]); // ✅ Toutes les primes disponibles
-  const [selectedPrimes, setSelectedPrimes] = useState<any[]>(entrepriseToEdit?.primes || []); // ✅ Primes sélectionnées
+  const [allPrimes, setAllPrimes] = useState<any[]>([]);
+  const [selectedPrimes, setSelectedPrimes] = useState<any[]>(entrepriseToEdit?.primes || []);
+  const [newPrimeNom, setNewPrimeNom] = useState<string>('');
+  const [newPrimeMontant, setNewPrimeMontant] = useState<number>(0);
   const [isEditMode, setIsEditMode] = useState<boolean>(!!entrepriseToEdit);
 
-  // ✅ Charge les primes AU DÉMARRAGE du composant
+  // Charge les primes de l'entreprise si on est en mode édition
   useEffect(() => {
-    const loadPrimes = async () => {
-      try {
-        const primes = await getPrimes();
-        setAllPrimes(primes);
-        console.log("Primes chargées:", primes); // ✅ Debug: vérifie que les primes sont bien chargées
-      } catch (error) {
-        console.error("Erreur lors du chargement des primes:", error);
-      }
+    if (entrepriseToEdit?.primes) {
+      setAllPrimes(entrepriseToEdit.primes);
+      setSelectedPrimes(entrepriseToEdit.primes);
+    }
+  }, [entrepriseToEdit]);
+
+  const handleAddPrime = () => {
+    if (!newPrimeNom || newPrimeMontant <= 0) return;
+    const newPrime = {
+      id: Date.now().toString(),
+      nom: newPrimeNom,
+      montant: newPrimeMontant
     };
-    loadPrimes();
-  }, []); // ✅ useEffect sans dépendances pour charger une seule fois
+    setAllPrimes([...allPrimes, newPrime]);
+    setSelectedPrimes([...selectedPrimes, newPrime]);
+    setNewPrimeNom('');
+    setNewPrimeMontant(0);
+  };
+
+  const handleRemovePrime = (id: string) => {
+    setAllPrimes(allPrimes.filter(p => p.id !== id));
+    setSelectedPrimes(selectedPrimes.filter(p => p.id !== id));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +62,7 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
       salaireMatelot,
       salaireCapitaine,
       couleur,
-      primes: selectedPrimes // ✅ Inclut les primes sélectionnées
+      primes: allPrimes // ✅ Sauvegarde toutes les primes (même non sélectionnées)
     };
 
     try {
@@ -135,20 +148,15 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
             </div>
           </div>
 
-          {/* ✅ PRIMES DE L'ENTREPRISE */}
+          {/* Primes de l'entreprise */}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes de l'entreprise</label>
-            <div style={{
-              maxHeight: '150px',
-              overflowY: 'auto',
-              border: '1px solid #444',
-              padding: '8px',
-              borderRadius: '4px',
-              backgroundColor: '#1a1a1a'
-            }}>
+
+            {/* Liste des primes existantes */}
+            <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #444', padding: '8px', borderRadius: '4px', marginBottom: '8px' }}>
               {allPrimes.length > 0 ? (
                 allPrimes.map((prime) => (
-                  <div key={prime.id} style={{ marginBottom: '6px' }}>
+                  <div key={prime.id} style={{ marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
                       <input
                         type="checkbox"
@@ -164,13 +172,43 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
                       />
                       {prime.nom} (+{prime.montant} €)
                     </label>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePrime(prime.id)}
+                      style={{ backgroundColor: '#ff4444', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 6px', fontSize: '12px' }}
+                    >
+                      ×
+                    </button>
                   </div>
                 ))
               ) : (
-                <p style={{ color: '#888', fontSize: '14px' }}>
-                  {allPrimes.length === 0 ? "Aucune prime dans la base de données." : "Chargement des primes..."}
-                </p>
+                <p style={{ color: '#888', fontSize: '14px' }}>Aucune prime définie pour cette entreprise.</p>
               )}
+            </div>
+
+            {/* Ajout de nouvelle prime */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <input
+                type="text"
+                value={newPrimeNom}
+                onChange={(e) => setNewPrimeNom(e.target.value)}
+                placeholder="Nom de la prime"
+                style={{ flex: 1, padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+              />
+              <input
+                type="number"
+                value={newPrimeMontant}
+                onChange={(e) => setNewPrimeMontant(Number(e.target.value))}
+                placeholder="Montant"
+                style={{ width: '80px', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+              />
+              <button
+                type="button"
+                onClick={handleAddPrime}
+                style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', fontSize: '14px' }}
+              >
+                + Ajouter
+              </button>
             </div>
           </div>
 
@@ -196,4 +234,4 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
   );
 };
 
-export default EntrepriseForm; // ✅ Export par défaut
+export default EntrepriseForm;

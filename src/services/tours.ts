@@ -6,17 +6,18 @@ import {
   addDoc,
   deleteDoc,
   updateDoc,
+  doc,
   query,
-  where,
-  doc // ✅ Ajout de l'import manquant
+  where
 } from 'firebase/firestore';
+import { RDTPM_ID } from '../App';
 
-// Types
 type Prime = { id: string; nom: string; montant: number };
 type Tour = {
   id: string;
   numero: string;
   saisonId: string;
+  entrepriseId?: string;
   heurePriseService: string;
   heureDepartPause?: string;
   heureReprise?: string;
@@ -25,12 +26,15 @@ type Tour = {
   primes?: Prime[];
 };
 
-// Fonctions
 export const getTours = async (): Promise<Tour[]> => {
   const querySnapshot = await getDocs(collection(db, "tours"));
   const tours: Tour[] = [];
   querySnapshot.forEach((doc) => {
-    tours.push({ id: doc.id, ...doc.data() } as Tour);
+    const tourData = doc.data();
+    if (!tourData.entrepriseId) {
+      tourData.entrepriseId = RDTPM_ID; // Rétrocompatibilité
+    }
+    tours.push({ id: doc.id, ...tourData } as Tour);
   });
   return tours;
 };
@@ -51,9 +55,9 @@ export const ajouterTour = async (tour: Omit<Tour, 'id'>) => {
 };
 
 export const supprimerTour = async (id: string) => {
-  await deleteDoc(doc(db, "tours", id)); // ✅ Utilisation de doc() avec l'import
+  await deleteDoc(doc(db, "tours", id));
 };
 
 export const mettreAJourTour = async (id: string, tour: Partial<Tour>) => {
-  await updateDoc(doc(db, "tours", id), tour); // ✅ Utilisation de doc() avec l'import
+  await updateDoc(doc(db, "tours", id), tour);
 };
