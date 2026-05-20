@@ -1,29 +1,16 @@
 // src/services/entreprises.ts
 import { db } from '../firebaseConfig';
-import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-
-// Définis les types directement ici
-type Prime = {
-  id: string;
-  nom: string;
-  montant: number;
-};
+import { collection, getDocs, addDoc, deleteDoc, updateDoc, doc } from 'firebase/firestore';
 
 type Entreprise = {
   id: string;
   nom: string;
-  salaireMatelot: number;
-  salaireCapitaine: number;
-  primes: Prime[];
+  salaireMatelot?: number;
+  salaireCapitaine?: number;
+  couleur?: string;
+  primes?: { id: string; nom: string; montant: number }[];
 };
 
-// Ajoute une entreprise
-export const ajouterEntreprise = async (entreprise: Omit<Entreprise, 'id'>) => {
-  const docRef = await addDoc(collection(db, "entreprises"), entreprise);
-  return docRef.id;
-};
-
-// Récupère toutes les entreprises
 export const getEntreprises = async (): Promise<Entreprise[]> => {
   const querySnapshot = await getDocs(collection(db, "entreprises"));
   const entreprises: Entreprise[] = [];
@@ -33,12 +20,15 @@ export const getEntreprises = async (): Promise<Entreprise[]> => {
   return entreprises;
 };
 
-// Supprime une entreprise
+export const ajouterEntreprise = async (entreprise: Omit<Entreprise, 'id'>) => {
+  const docRef = await addDoc(collection(db, "entreprises"), entreprise);
+  return docRef.id;
+};
+
 export const supprimerEntreprise = async (id: string) => {
   await deleteDoc(doc(db, "entreprises", id));
 };
 
-// Met à jour une entreprise
 export const mettreAJourEntreprise = async (id: string, entreprise: Partial<Entreprise>) => {
   await updateDoc(doc(db, "entreprises", id), entreprise);
 };

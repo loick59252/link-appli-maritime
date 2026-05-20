@@ -8,7 +8,8 @@ import { SaisonsList } from './components/SaisonsList';
 import { ToursList } from './components/ToursList';
 import { JourneeForm } from './components/JourneeForm';
 import { getJourneesParDate, supprimerJournee } from './services/journees';
-import { getEntreprises } from './services/entreprises'; // ✅ Ajout de l'import
+import { getEntreprises } from './services/entreprises';
+import { getTours } from './services/tours';
 
 // ID réel de RDTPM dans Firebase
 export const RDTPM_ID = "8TcUp0MYz2WsPq7aT2KP";
@@ -19,28 +20,33 @@ function App() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [journees, setJournees] = useState<any[]>([]);
   const [journeeToEdit, setJourneeToEdit] = useState<any>(null);
-  const [entreprises, setEntreprises] = useState<any[]>([]); // ✅ Ajout du state pour entreprises
+  const [entreprises, setEntreprises] = useState<any[]>([]);
+  const [tours, setTours] = useState<any[]>([]);
 
-  // Charge les entreprises et les journées
+  // Charge les données initiales
   useEffect(() => {
-    const chargerDonnees = async () => {
-      const entreprises = await getEntreprises(); // ✅ Charge les entreprises
-      setEntreprises(entreprises);
+    const loadData = async () => {
+      const [entreprisesData, toursData] = await Promise.all([
+        getEntreprises(),
+        getTours()
+      ]);
+      setEntreprises(entreprisesData);
+      setTours(toursData);
       const dateISO = selectedDate.toISOString().split('T')[0];
-      const journees = await getJourneesParDate(dateISO);
-      setJournees(journees);
+      const journeesData = await getJourneesParDate(dateISO);
+      setJournees(journeesData);
     };
-    chargerDonnees();
-  }, [selectedDate]);
+    loadData();
+  }, []);
 
   // Recharge les journées quand la date change
   useEffect(() => {
-    const chargerJournees = async () => {
+    const loadJournees = async () => {
       const dateISO = selectedDate.toISOString().split('T')[0];
-      const journees = await getJourneesParDate(dateISO);
-      setJournees(journees);
+      const journeesData = await getJourneesParDate(dateISO);
+      setJournees(journeesData);
     };
-    chargerJournees();
+    loadJournees();
   }, [selectedDate]);
 
   const handleDeleteJournee = async (id: string) => {
@@ -159,7 +165,8 @@ function App() {
             {journees.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {journees.map((journee) => {
-                  const entreprise = entreprises.find(e => e.id === journee.entrepriseId); // ✅ Utilisation de entreprises
+                  const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
+                  const tour = tours.find(t => t.id === journee.tourId);
                   return (
                     <div
                       key={journee.id}
@@ -168,7 +175,6 @@ function App() {
                         backgroundColor: '#2a2a2a',
                         borderRadius: '8px',
                         borderLeft: `4px solid ${entreprise?.couleur || '#0078d4'}`,
-                        position: 'relative'
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -177,7 +183,7 @@ function App() {
                             {entreprise?.nom || journee.entrepriseId}
                           </strong>
                           <span style={{ marginLeft: '15px' }}>{journee.role}</span>
-                          {journee.tourId && <span style={{ marginLeft: '15px' }}>Tour: {journee.tourId}</span>}
+                          {tour && <span style={{ marginLeft: '15px' }}>Tour {tour.numero} - {tour.lignesDestinations.join(', ')}</span>}
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
                           <button
@@ -209,7 +215,7 @@ function App() {
                               borderRadius: '4px'
                             }}
                           >
-                            🗑️ Supprimer
+                            🗑️
                           </button>
                         </div>
                       </div>
@@ -248,7 +254,7 @@ function App() {
       {ongletActif === 'saisons' && <SaisonsList />}
       {ongletActif === 'tours' && <ToursList />}
 
-      {/* Formulaires */}
+      {/* Formulaire d'ajout/modification de journée */}
       {showJourneeForm && (
         <JourneeForm
           onClose={() => {
@@ -261,7 +267,8 @@ function App() {
           }}
           date={selectedDate.toISOString().split('T')[0]}
           journeeToEdit={journeeToEdit}
-          entreprises={entreprises} // ✅ Passe entreprises comme prop
+          entreprises={entreprises}
+          tours={tours}
         />
       )}
     </div>

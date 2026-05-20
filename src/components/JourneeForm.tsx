@@ -31,11 +31,12 @@ type JourneeFormProps = {
   onJourneeAjoutee: () => void;
   date?: string;
   journeeToEdit?: any;
-  entreprises: Entreprise[]; // ✅ Prop entreprises ajoutée
+  entreprises: Entreprise[];
+  tours: Tour[];
 };
 
-export const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEdit, entreprises }: JourneeFormProps) => {
-  // ✅ Utilise la prop entreprises au lieu de charger depuis le service
+export const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEdit, entreprises, tours: allTours }: JourneeFormProps) => {
+  // États
   const [localDate, setLocalDate] = useState<string>(journeeToEdit?.date || initialDate || new Date().toISOString().split('T')[0]);
   const [selectedEntrepriseId, setSelectedEntrepriseId] = useState<string>(journeeToEdit?.entrepriseId || entreprises[0]?.id || '');
   const [selectedTourId, setSelectedTourId] = useState<string>(journeeToEdit?.tourId || '');
@@ -73,16 +74,16 @@ export const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, jour
 
         if (saisonTrouvee) {
           setSelectedSaisonId(saisonTrouvee.id);
-          const tours = await getToursParSaison(saisonTrouvee.id);
-          const sortedTours = [...tours].sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
-          setTours(sortedTours);
-          setFilteredTours(sortedTours);
+          const tours = allTours.filter(t => t.saisonId === saisonTrouvee.id)
+            .sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
+          setTours(tours);
+          setFilteredTours(tours);
         } else if (saisons.length > 0) {
           setSelectedSaisonId(saisons[0].id);
-          const tours = await getToursParSaison(saisons[0].id);
-          const sortedTours = [...tours].sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
-          setTours(sortedTours);
-          setFilteredTours(sortedTours);
+          const tours = allTours.filter(t => t.saisonId === saisons[0].id)
+            .sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
+          setTours(tours);
+          setFilteredTours(tours);
         }
 
         // Charge les primes de l'entreprise sélectionnée
@@ -98,18 +99,17 @@ export const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, jour
       }
     };
     loadData();
-  }, [selectedEntrepriseId, entreprises, journeeToEdit, initialDate]);
+  }, [selectedEntrepriseId, entreprises, journeeToEdit, initialDate, allTours]);
 
   // Charge les tours quand la saison change
   useEffect(() => {
     if (selectedSaisonId) {
-      getToursParSaison(selectedSaisonId).then((tours) => {
-        const sortedTours = [...tours].sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
-        setTours(sortedTours);
-        setFilteredTours(sortedTours);
-      });
+      const tours = allTours.filter(t => t.saisonId === selectedSaisonId)
+        .sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
+      setTours(tours);
+      setFilteredTours(tours);
     }
-  }, [selectedSaisonId]);
+  }, [selectedSaisonId, allTours]);
 
   // Filtre les tours en fonction de la recherche
   useEffect(() => {
@@ -134,7 +134,7 @@ export const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, jour
         setHeureReprise(tour.heureReprise || '');
         setHeureFinService(tour.heureFinService);
         setLignesDestinations(tour.lignesDestinations.join(', '));
-        // Ajoute les primes du tour aux primes sélectionnées
+        // Ajoute les primes du tour aux primes sélectionnées (sans doublons)
         setPrimesSelectionnees(prev => {
           const tourPrimesIds = new Set(tour.primes?.map(p => p.id) || []);
           return [...prev.filter(p => !tourPrimesIds.has(p.id)), ...(tour.primes || [])];
@@ -351,34 +351,71 @@ export const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, jour
             </div>
           )}
 
-          {/* Primes (cases à cocher) */}
+          {/* Primes */}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes</label>
-            <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #444', padding: '8px', borderRadius: '4px', marginBottom: '8px' }}>
-              {primesEntreprise.length > 0 ? (
-                primesEntreprise.map((prime) => (
-                  <div key={prime.id} style={{ marginBottom: '6px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
-                      <input
-                        type="checkbox"
-                        checked={primesSelectionnees.some(p => p.id === prime.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setPrimesSelectionnees([...primesSelectionnees, prime]);
-                          } else {
-                            setPrimesSelectionnees(primesSelectionnees.filter(p => p.id !== prime.id));
-                          }
-                        }}
-                        style={{ marginRight: '6px' }}
-                      />
-                      {prime.nom} (+{prime.montant} €)
-                    </label>
-                  </div>
-                ))
-              ) : (
-                <p style={{ color: '#888', fontSize: '14px' }}>Aucune prime définie pour cette entreprise.</p>
-              )}
+
+            {/* Primes de l'entreprise */}
+            <div style={{ marginBottom: '8px' }}>
+              <strong style={{ fontSize: '14px' }}>Primes de l'entreprise :</strong>
+              <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #444', padding: '8px', borderRadius: '4px', marginTop: '4px' }}>
+                {primesEntreprise.length > 0 ? (
+                  primesEntreprise.map((prime) => (
+                    <div key={prime.id} style={{ marginBottom: '6px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
+                        <input
+                          type="checkbox"
+                          checked={primesSelectionnees.some(p => p.id === prime.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setPrimesSelectionnees([...primesSelectionnees, prime]);
+                            } else {
+                              setPrimesSelectionnees(primesSelectionnees.filter(p => p.id !== prime.id));
+                            }
+                          }}
+                          style={{ marginRight: '6px' }}
+                        />
+                        {prime.nom} (+{prime.montant} €)
+                      </label>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ color: '#888', fontSize: '14px' }}>Aucune prime définie pour cette entreprise.</p>
+                )}
+              </div>
             </div>
+
+            {/* Primes du tour (si un tour est sélectionné) */}
+            {selectedTourId && (
+              <div style={{ marginBottom: '8px' }}>
+                <strong style={{ fontSize: '14px' }}>Primes du tour sélectionné :</strong>
+                <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #444', padding: '8px', borderRadius: '4px', marginTop: '4px' }}>
+                  {tours.find(t => t.id === selectedTourId)?.primes?.length > 0 ? (
+                    tours.find(t => t.id === selectedTourId)?.primes?.map((prime: any) => (
+                      <div key={prime.id} style={{ marginBottom: '6px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
+                          <input
+                            type="checkbox"
+                            checked={primesSelectionnees.some(p => p.id === prime.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setPrimesSelectionnees([...primesSelectionnees, prime]);
+                              } else {
+                                setPrimesSelectionnees(primesSelectionnees.filter(p => p.id !== prime.id));
+                              }
+                            }}
+                            style={{ marginRight: '6px' }}
+                          />
+                          {prime.nom} (+{prime.montant} €)
+                        </label>
+                      </div>
+                    ))
+                  ) : (
+                    <p style={{ color: '#888', fontSize: '14px' }}>Aucune prime associée à ce tour.</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Primes spéciales */}
             <div>

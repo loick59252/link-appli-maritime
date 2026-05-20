@@ -1,153 +1,184 @@
 // src/components/EntrepriseForm.tsx
-import { useState } from 'react';
-import { ajouterEntreprise } from '../services/entreprises';
+import { useState, useEffect } from 'react';
+import { ajouterEntreprise, mettreAJourEntreprise } from './../services/entreprises';
+import { getPrimes } from './../services/primes'; // ✅ Import pour récupérer les primes
 
 type EntrepriseFormProps = {
   onClose: () => void;
   onEntrepriseAjoutee: () => void;
+  entrepriseToEdit?: any;
 };
 
-export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee }: EntrepriseFormProps) => {
-  const [nom, setNom] = useState("");
-  const [salaireMatelot, setSalaireMatelot] = useState<number>(0);
-  const [salaireCapitaine, setSalaireCapitaine] = useState<number>(0);
-  const [primes, setPrimes] = useState<Prime[]>([{ id: Date.now().toString(), nom: "", montant: 0 }]);
+const COULEURS_DISPONIBLES = [
+  '#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F3',
+  '#33FFF3', '#8A2BE2', '#FF7F50', '#6495ED', '#DC143C'
+];
 
-  const ajouterPrime = () => {
-    setPrimes([...primes, { id: Date.now().toString(), nom: "", montant: 0 }]);
-  };
+export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit }: EntrepriseFormProps) => {
+  const [nom, setNom] = useState<string>(entrepriseToEdit?.nom || '');
+  const [salaireMatelot, setSalaireMatelot] = useState<number>(entrepriseToEdit?.salaireMatelot || 0);
+  const [salaireCapitaine, setSalaireCapitaine] = useState<number>(entrepriseToEdit?.salaireCapitaine || 0);
+  const [couleur, setCouleur] = useState<string>(entrepriseToEdit?.couleur || COULEURS_DISPONIBLES[0]);
+  const [allPrimes, setAllPrimes] = useState<any[]>([]); // ✅ Toutes les primes disponibles
+  const [selectedPrimes, setSelectedPrimes] = useState<any[]>(entrepriseToEdit?.primes || []); // ✅ Primes sélectionnées
+  const [isEditMode, setIsEditMode] = useState<boolean>(!!entrepriseToEdit);
 
-  const mettreAJourPrime = (id: string, champ: keyof Prime, valeur: string | number) => {
-    setPrimes(primes.map(prime =>
-      prime.id === id ? { ...prime, [champ]: valeur } : prime
-    ));
-  };
+  // ✅ Charge les primes au chargement du composant
+  useEffect(() => {
+    const loadPrimes = async () => {
+      try {
+        const primesData = await getPrimes();
+        setAllPrimes(primesData);
+      } catch (error) {
+        console.error("Erreur lors du chargement des primes:", error);
+      }
+    };
+    loadPrimes();
+  }, []);
 
-  const supprimerPrime = (id: string) => {
-    setPrimes(primes.filter(prime => prime.id !== id));
-  };
-
-  const soumettre = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nom) return;
+    if (!nom) {
+      alert("Veuillez remplir le nom de l'entreprise.");
+      return;
+    }
 
-    const nouvelleEntreprise: Omit<Entreprise, 'id'> = {
+    const entrepriseData: any = {
       nom,
       salaireMatelot,
       salaireCapitaine,
-      primes: primes.filter(p => p.nom && p.montant > 0)
+      couleur,
+      primes: selectedPrimes // ✅ Inclut les primes sélectionnées
     };
 
-    await ajouterEntreprise(nouvelleEntreprise);
-    onEntrepriseAjoutee();
-    onClose();
+    try {
+      if (isEditMode && entrepriseToEdit) {
+        await mettreAJourEntreprise(entrepriseToEdit.id, entrepriseData);
+        alert("Entreprise modifiée avec succès !");
+      } else {
+        await ajouterEntreprise(entrepriseData);
+        alert("Entreprise ajoutée avec succès !");
+      }
+      onEntrepriseAjoutee();
+      onClose();
+    } catch (error) {
+      alert(`Erreur: ${error}`);
+    }
   };
 
   return (
     <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)', display: 'flex',
+      justifyContent: 'center', alignItems: 'center', zIndex: 1000
     }}>
       <div style={{
-        backgroundColor: '#2a2a2a',
-        padding: '20px',
-        borderRadius: '8px',
-        width: '500px',
-        maxWidth: '90%',
-        color: 'white'
+        backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '10px',
+        width: '90%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto',
+        color: 'white', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
       }}>
-        <h2>Ajouter une entreprise</h2>
-        <form onSubmit={soumettre}>
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Nom de l'entreprise</label>
+        <h2>{isEditMode ? 'Modifier une entreprise' : 'Ajouter une entreprise'}</h2>
+        <form onSubmit={handleSubmit}>
+          {/* Nom */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Nom</label>
             <input
               type="text"
               value={nom}
               onChange={(e) => setNom(e.target.value)}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: 'none' }}
+              placeholder="Nom de l'entreprise"
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
               required
             />
           </div>
 
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Salaire horaire Matelot (€)</label>
+          {/* Salaire Matelot */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Salaire Matelot (€/jour)</label>
             <input
               type="number"
               value={salaireMatelot}
               onChange={(e) => setSalaireMatelot(Number(e.target.value))}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: 'none' }}
-              required
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
             />
           </div>
 
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Salaire horaire Capitaine (€)</label>
+          {/* Salaire Capitaine */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Salaire Capitaine (€/jour)</label>
             <input
               type="number"
               value={salaireCapitaine}
               onChange={(e) => setSalaireCapitaine(Number(e.target.value))}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: 'none' }}
-              required
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
             />
           </div>
 
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Primes spécifiques</label>
-            {primes.map((prime) => (
-              <div key={prime.id} style={{ display: 'flex', marginBottom: '10px', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  value={prime.nom}
-                  onChange={(e) => mettreAJourPrime(prime.id, 'nom', e.target.value)}
-                  placeholder="Nom de la prime"
-                  style={{ flex: 1, padding: '8px', borderRadius: '4px', border: 'none', marginRight: '5px' }}
+          {/* Couleur */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Couleur</label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+              {COULEURS_DISPONIBLES.map((color) => (
+                <div
+                  key={color}
+                  onClick={() => setCouleur(color)}
+                  style={{
+                    width: '30px',
+                    height: '30px',
+                    backgroundColor: color,
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    border: couleur === color ? '2px solid white' : 'none'
+                  }}
                 />
-                <input
-                  type="number"
-                  value={prime.montant}
-                  onChange={(e) => mettreAJourPrime(prime.id, 'montant', Number(e.target.value))}
-                  placeholder="Montant (€)"
-                  style={{ width: '100px', padding: '8px', borderRadius: '4px', border: 'none', marginRight: '5px' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => supprimerPrime(prime.id)}
-                  style={{ backgroundColor: '#ff4444', color: 'white', border: 'none', borderRadius: '4px', padding: '5px 10px' }}
-                >
-                  Supprimer
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={ajouterPrime}
-              style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 15px' }}
-            >
-              Ajouter une prime
-            </button>
+              ))}
+            </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+          {/* Primes de l'entreprise */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes de l'entreprise</label>
+            <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #444', padding: '8px', borderRadius: '4px' }}>
+              {allPrimes.length > 0 ? (
+                allPrimes.map((prime) => (
+                  <div key={prime.id} style={{ marginBottom: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedPrimes.some(p => p.id === prime.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedPrimes([...selectedPrimes, prime]);
+                          } else {
+                            setSelectedPrimes(selectedPrimes.filter(p => p.id !== prime.id));
+                          }
+                        }}
+                        style={{ marginRight: '6px' }}
+                      />
+                      {prime.nom} (+{prime.montant} €)
+                    </label>
+                  </div>
+                ))
+              ) : (
+                <p style={{ color: '#888', fontSize: '14px' }}>Aucune prime disponible.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Boutons */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
             <button
               type="button"
               onClick={onClose}
-              style={{ backgroundColor: '#555', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 15px' }}
+              style={{ backgroundColor: '#555', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', fontSize: '14px' }}
             >
               Annuler
             </button>
             <button
               type="submit"
-              style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 15px' }}
+              style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', fontSize: '14px' }}
             >
-              Enregistrer
+              {isEditMode ? 'Modifier' : 'Enregistrer'}
             </button>
           </div>
         </form>

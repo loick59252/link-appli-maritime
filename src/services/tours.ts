@@ -1,6 +1,15 @@
 // src/services/tours.ts
-import { db } from '../firebaseConfig'; // ✅ ./firebaseConfig
-import { collection, getDocs, addDoc, deleteDoc, updateDoc, query, where } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  updateDoc,
+  query,
+  where,
+  doc // ✅ Ajout de l'import manquant
+} from 'firebase/firestore';
 
 // Types
 type Prime = { id: string; nom: string; montant: number };
@@ -42,9 +51,9 @@ export const ajouterTour = async (tour: Omit<Tour, 'id'>) => {
 };
 
 export const supprimerTour = async (id: string) => {
-  await deleteDoc(doc(db, "tours", id));
+  await deleteDoc(doc(db, "tours", id)); // ✅ Utilisation de doc() avec l'import
 };
 
 export const mettreAJourTour = async (id: string, tour: Partial<Tour>) => {
-  await updateDoc(doc(db, "tours", id), tour);
+  await updateDoc(doc(db, "tours", id), tour); // ✅ Utilisation de doc() avec l'import
 };

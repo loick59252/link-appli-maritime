@@ -1,8 +1,8 @@
 // src/components/TourForm.tsx
-// ✅ Corrige les imports (chemin relatif depuis components/)
 import { useState, useEffect } from 'react';
-import { getSaisons } from '../services/saisons'; // ✅ ../services/
-import { ajouterTour, mettreAJourTour } from '../services/tours';
+import { getSaisons } from './../services/saisons';
+import { ajouterTour, mettreAJourTour } from './../services/tours';
+import { getPrimes } from './../services/primes'; // ✅ Ajout pour récupérer les primes
 
 type TourFormProps = {
   onClose: () => void;
@@ -19,17 +19,23 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
   const [heureFinService, setHeureFinService] = useState<string>(tourToEdit?.heureFinService || '');
   const [lignesDestinations, setLignesDestinations] = useState<string>(tourToEdit?.lignesDestinations?.join(', ') || '');
   const [saisons, setSaisons] = useState<any[]>([]);
+  const [primes, setPrimes] = useState<any[]>([]); // ✅ État pour les primes
+  const [selectedPrimes, setSelectedPrimes] = useState<any[]>(tourToEdit?.primes || []); // ✅ Primes sélectionnées
   const [isEditMode, setIsEditMode] = useState<boolean>(!!tourToEdit);
 
   useEffect(() => {
-    const loadSaisons = async () => {
-      const saisons = await getSaisons();
-      setSaisons(saisons);
-      if (saisons.length > 0 && !saisonId) {
-        setSaisonId(saisons[0].id);
+    const loadData = async () => {
+      const [saisonsData, primesData] = await Promise.all([
+        getSaisons(),
+        getPrimes() // ✅ Charge les primes
+      ]);
+      setSaisons(saisonsData);
+      setPrimes(primesData);
+      if (saisonsData.length > 0 && !saisonId) {
+        setSaisonId(saisonsData[0].id);
       }
     };
-    loadSaisons();
+    loadData();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,21 +45,26 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
       return;
     }
 
-    const tourData = {
+    const tourData: any = {
       numero,
       saisonId,
       heurePriseService,
       heureFinService,
       lignesDestinations: lignesDestinations.split(',').map(l => l.trim()),
-      primes: tourToEdit?.primes || [],
+      primes: selectedPrimes // ✅ Ajoute les primes sélectionnées
     };
 
     if (heureDepartPause) tourData.heureDepartPause = heureDepartPause;
     if (heureReprise) tourData.heureReprise = heureReprise;
 
     try {
-      await ajouterTour(tourData);
-      alert(`Tour ${isEditMode ? 'modifié' : 'ajouté'} avec succès !`);
+      if (isEditMode && tourToEdit) {
+        await mettreAJourTour(tourToEdit.id, tourData);
+        alert("Tour modifié avec succès !");
+      } else {
+        await ajouterTour(tourData);
+        alert("Tour ajouté avec succès !");
+      }
       onTourAjoute();
       onClose();
     } catch (error) {
@@ -69,8 +80,8 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
     }}>
       <div style={{
         backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '10px',
-        width: '90%', maxWidth: '500px', color: 'white',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+        width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto',
+        color: 'white', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
       }}>
         <h2>{isEditMode ? 'Modifier un tour' : 'Ajouter un tour'}</h2>
         <form onSubmit={handleSubmit}>
@@ -156,6 +167,36 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
               style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
               required
             />
+          </div>
+
+          {/* Primes (cases à cocher) */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes associées</label>
+            <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #444', padding: '8px', borderRadius: '4px' }}>
+              {primes.length > 0 ? (
+                primes.map((prime) => (
+                  <div key={prime.id} style={{ marginBottom: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedPrimes.some(p => p.id === prime.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedPrimes([...selectedPrimes, prime]);
+                          } else {
+                            setSelectedPrimes(selectedPrimes.filter(p => p.id !== prime.id));
+                          }
+                        }}
+                        style={{ marginRight: '6px' }}
+                      />
+                      {prime.nom} (+{prime.montant} €)
+                    </label>
+                  </div>
+                ))
+              ) : (
+                <p style={{ color: '#888', fontSize: '14px' }}>Aucune prime disponible.</p>
+              )}
+            </div>
           </div>
 
           {/* Boutons */}
