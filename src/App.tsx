@@ -6,7 +6,7 @@ import './App.css';
 import { EntrepriseList } from './components/EntrepriseList';
 import { SaisonsList } from './components/SaisonsList';
 import { ToursList } from './components/ToursList';
-import { JourneeForm } from './components/JourneeForm';
+import JourneeForm from './components/JourneeForm';
 import { getJourneesParDate, supprimerJournee } from './services/journees';
 import { getEntreprises } from './services/entreprises';
 import { getTours } from './services/tours';

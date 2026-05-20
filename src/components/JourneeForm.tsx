@@ -35,7 +35,7 @@ type JourneeFormProps = {
   tours: Tour[];
 };
 
-export const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEdit, entreprises, tours: allTours }: JourneeFormProps) => {
+const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEdit, entreprises, tours: allTours }: JourneeFormProps) => {
   // États
   const [localDate, setLocalDate] = useState<string>(journeeToEdit?.date || initialDate || new Date().toISOString().split('T')[0]);
   const [selectedEntrepriseId, setSelectedEntrepriseId] = useState<string>(journeeToEdit?.entrepriseId || entreprises[0]?.id || '');
@@ -265,33 +265,31 @@ export const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, jour
             </div>
           </div>
 
-          {/* Section pour RDTPM: Tour (affichage "Tour X - destination") */}
+          {/* Section pour RDTPM: Tour */}
           {selectedEntrepriseId === RDTPM_ID && (
-            <>
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Tour de service</label>
-                <input
-                  type="text"
-                  placeholder="Rechercher un tour..."
-                  value={tourSearch}
-                  onChange={(e) => setTourSearch(e.target.value)}
-                  style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', marginBottom: '4px', fontSize: '14px' }}
-                />
-                <select
-                  value={selectedTourId}
-                  onChange={(e) => setSelectedTourId(e.target.value)}
-                  style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
-                  required
-                >
-                  <option value="">-- Sélectionner un tour --</option>
-                  {filteredTours.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      Tour {t.numero} - {t.lignesDestinations.join(', ')}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Tour de service</label>
+              <input
+                type="text"
+                placeholder="Rechercher un tour..."
+                value={tourSearch}
+                onChange={(e) => setTourSearch(e.target.value)}
+                style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', marginBottom: '4px', fontSize: '14px' }}
+              />
+              <select
+                value={selectedTourId}
+                onChange={(e) => setSelectedTourId(e.target.value)}
+                style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+                required
+              >
+                <option value="">-- Sélectionner un tour --</option>
+                {filteredTours.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    Tour {t.numero} - {t.lignesDestinations.join(', ')}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
           {/* Heures */}
@@ -495,3 +493,5 @@ export const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, jour
     </div>
   );
 };
+
+export default JourneeForm; // ✅ EXPORT PAR DÉFAUT AJOUTÉ ICI

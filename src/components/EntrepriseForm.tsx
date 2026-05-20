@@ -1,7 +1,7 @@
 // src/components/EntrepriseForm.tsx
 import { useState, useEffect } from 'react';
 import { ajouterEntreprise, mettreAJourEntreprise } from './../services/entreprises';
-import { getPrimes } from './../services/primes'; // ✅ Import pour récupérer les primes
+import { getPrimes } from './../services/primes'; // ✅ Import des primes
 
 type EntrepriseFormProps = {
   onClose: () => void;
@@ -23,18 +23,19 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
   const [selectedPrimes, setSelectedPrimes] = useState<any[]>(entrepriseToEdit?.primes || []); // ✅ Primes sélectionnées
   const [isEditMode, setIsEditMode] = useState<boolean>(!!entrepriseToEdit);
 
-  // ✅ Charge les primes au chargement du composant
+  // ✅ Charge les primes AU DÉMARRAGE du composant
   useEffect(() => {
     const loadPrimes = async () => {
       try {
-        const primesData = await getPrimes();
-        setAllPrimes(primesData);
+        const primes = await getPrimes();
+        setAllPrimes(primes);
+        console.log("Primes chargées:", primes); // ✅ Debug: vérifie que les primes sont bien chargées
       } catch (error) {
         console.error("Erreur lors du chargement des primes:", error);
       }
     };
     loadPrimes();
-  }, []);
+  }, []); // ✅ useEffect sans dépendances pour charger une seule fois
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +44,7 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
       return;
     }
 
-    const entrepriseData: any = {
+    const entrepriseData = {
       nom,
       salaireMatelot,
       salaireCapitaine,
@@ -52,7 +53,7 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
     };
 
     try {
-      if (isEditMode && entrepriseToEdit) {
+      if (isEditMode) {
         await mettreAJourEntreprise(entrepriseToEdit.id, entrepriseData);
         alert("Entreprise modifiée avec succès !");
       } else {
@@ -92,7 +93,7 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
             />
           </div>
 
-          {/* Salaire Matelot */}
+          {/* Salaires */}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Salaire Matelot (€/jour)</label>
             <input
@@ -103,7 +104,6 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
             />
           </div>
 
-          {/* Salaire Capitaine */}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Salaire Capitaine (€/jour)</label>
             <input
@@ -135,10 +135,17 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
             </div>
           </div>
 
-          {/* Primes de l'entreprise */}
+          {/* ✅ PRIMES DE L'ENTREPRISE */}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes de l'entreprise</label>
-            <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #444', padding: '8px', borderRadius: '4px' }}>
+            <div style={{
+              maxHeight: '150px',
+              overflowY: 'auto',
+              border: '1px solid #444',
+              padding: '8px',
+              borderRadius: '4px',
+              backgroundColor: '#1a1a1a'
+            }}>
               {allPrimes.length > 0 ? (
                 allPrimes.map((prime) => (
                   <div key={prime.id} style={{ marginBottom: '6px' }}>
@@ -160,7 +167,9 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
                   </div>
                 ))
               ) : (
-                <p style={{ color: '#888', fontSize: '14px' }}>Aucune prime disponible.</p>
+                <p style={{ color: '#888', fontSize: '14px' }}>
+                  {allPrimes.length === 0 ? "Aucune prime dans la base de données." : "Chargement des primes..."}
+                </p>
               )}
             </div>
           </div>
@@ -186,3 +195,5 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
     </div>
   );
 };
+
+export default EntrepriseForm; // ✅ Export par défaut
