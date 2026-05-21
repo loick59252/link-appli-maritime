@@ -236,7 +236,7 @@ function App() {
           alt="Logo"
           className="app-logo"
 />
-        <h1>Planning Maritime</h1>
+        <h1>Dashboard Maritime</h1>
       </div>
 
       {/* Onglets */}
