@@ -12,6 +12,7 @@ export const ToursList = () => {
   const [entreprises, setEntreprises] = useState<any[]>([]);
   const [showTourForm, setShowTourForm] = useState(false);
   const [tourToEdit, setTourToEdit] = useState<any>(null);
+  const [selectedSaisonId, setSelectedSaisonId] = useState<string>(''); // ✅ Nouveau state pour la saison sélectionnée
 
   useEffect(() => {
     const loadData = async () => {
@@ -23,12 +24,19 @@ export const ToursList = () => {
       setTours(toursData);
       setSaisons(saisonsData);
       setEntreprises(entreprisesData);
+      // ✅ Sélectionne la première saison par défaut
+      if (saisonsData.length > 0) {
+        setSelectedSaisonId(saisonsData[0].id);
+      }
     };
     loadData();
   }, []);
 
-  // Filtre pour n'afficher QUE les tours de RDTPM (ou ceux sans entrepriseId pour la rétrocompatibilité)
-  const rdpmTours = tours.filter(t => t.entrepriseId === RDTPM_ID || !t.entrepriseId);
+  // ✅ Filtre combiné : RDTPM + saison sélectionnée
+  const filteredTours = tours.filter(t =>
+    (t.entrepriseId === RDTPM_ID || !t.entrepriseId) &&
+    (selectedSaisonId ? t.saisonId === selectedSaisonId : true) // ✅ Filtre par saison
+  );
 
   const handleDeleteTour = async (id: string) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer ce tour ?")) {
@@ -44,8 +52,24 @@ export const ToursList = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: '20px' }}>
-        <h3>Tours de service (RDTPM uniquement)</h3>
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <h3 style={{ margin: 0 }}>Tours de service (RDTPM uniquement)</h3>
+
+        {/* ✅ Sélecteur de saison */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <label style={{ fontSize: '14px' }}>Saison:</label>
+          <select
+            value={selectedSaisonId}
+            onChange={(e) => setSelectedSaisonId(e.target.value)}
+            style={{ padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+          >
+            <option value="">Toutes les saisons</option>
+            {saisons.map((s) => (
+              <option key={s.id} value={s.id}>{s.nom}</option>
+            ))}
+          </select>
+        </div>
+
         <button
           onClick={() => {
             setTourToEdit(null);
@@ -57,7 +81,8 @@ export const ToursList = () => {
             border: 'none',
             borderRadius: '5px',
             padding: '6px 12px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            marginLeft: 'auto'
           }}
         >
           Ajouter un tour
@@ -65,7 +90,7 @@ export const ToursList = () => {
       </div>
 
       <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-        {rdpmTours.length > 0 ? (
+        {filteredTours.length > 0 ? (
           <table style={{ width: '100%', borderCollapse: 'collapse', color: 'white', fontSize: '14px' }}>
             <thead>
               <tr style={{ backgroundColor: '#2a2a2a' }}>
@@ -78,7 +103,7 @@ export const ToursList = () => {
               </tr>
             </thead>
             <tbody>
-              {rdpmTours.map((tour) => {
+              {filteredTours.map((tour) => {
                 const saison = saisons.find(s => s.id === tour.saisonId);
                 return (
                   <tr key={tour.id} style={{ borderBottom: '1px solid #444' }}>
@@ -123,7 +148,7 @@ export const ToursList = () => {
             </tbody>
           </table>
         ) : (
-          <p style={{ color: '#888' }}>Aucun tour trouvé pour RDTPM.</p>
+          <p style={{ color: '#888' }}>Aucun tour trouvé pour RDTPM {selectedSaisonId ? `dans la saison ${saisons.find(s => s.id === selectedSaisonId)?.nom}` : ''}.</p>
         )}
       </div>
 

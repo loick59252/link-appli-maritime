@@ -9,7 +9,9 @@ import {
   doc,
   query,
   where
-} from 'firebase/firestore';
+} 
+
+from 'firebase/firestore';
 import { RDTPM_ID } from '../App';
 
 type Prime = { id: string; nom: string; montant: number };

@@ -52,3 +52,24 @@ export const supprimerJournee = async (id: string) => {
 export const mettreAJourJournee = async (id: string, journee: Partial<Journee>) => {
   await updateDoc(doc(db, "journees", id), journee);
 };
+
+/**
+ * Récupère toutes les journées pour un mois donné
+ */
+export const getJourneesParMois = async (annee: number, mois: number) => {
+  const startDate = new Date(annee, mois - 1, 1);
+  const endDate = new Date(annee, mois, 0, 23, 59, 59);
+
+  const q = query(
+    collection(db, "journees"),
+    where("date", ">=", startDate.toISOString().split('T')[0]),
+    where("date", "<=", endDate.toISOString().split('T')[0])
+  );
+
+  const querySnapshot = await getDocs(q);
+  const journees: any[] = [];
+  querySnapshot.forEach((doc) => {
+    journees.push({ id: doc.id, ...doc.data() });
+  });
+  return journees;
+};

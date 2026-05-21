@@ -2,275 +2,260 @@
 import { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import './App.css';
-import { EntrepriseList } from './components/EntrepriseList';
-import { SaisonsList } from './components/SaisonsList';
-import { ToursList } from './components/ToursList';
-import JourneeForm from './components/JourneeForm';
-import { getJourneesParDate, supprimerJournee } from './services/journees';
+import { getJourneesParMois } from './services/journees';
 import { getEntreprises } from './services/entreprises';
 import { getTours } from './services/tours';
+import { getSaisons} from './services/saisons';
+import JourneeForm from './components/JourneeForm';
+import { ToursList } from './components/ToursList';
+import { EntrepriseList } from './components/EntrepriseList';
+import { SaisonsList } from './components/SaisonsList';
 
 // ID réel de RDTPM dans Firebase
 export const RDTPM_ID = "8TcUp0MYz2WsPq7aT2KP";
 
 function App() {
-  const [ongletActif, setOngletActif] = useState<'planning' | 'entreprises' | 'saisons' | 'tours'>('planning');
-  const [showJourneeForm, setShowJourneeForm] = useState(false);
+  // États
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [journees, setJournees] = useState<any[]>([]);
-  const [journeeToEdit, setJourneeToEdit] = useState<any>(null);
   const [entreprises, setEntreprises] = useState<any[]>([]);
   const [tours, setTours] = useState<any[]>([]);
+  const [saisons, setSaisons] = useState<any[]>([]);
+  const [showJourneeForm, setShowJourneeForm] = useState(false);
+  const [journeeToEdit, setJourneeToEdit] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'Planning' | 'Entreprises' | 'Saisons' | 'Tours'>('Planning');
 
   // Charge les données initiales
   useEffect(() => {
     const loadData = async () => {
-      const [entreprisesData, toursData] = await Promise.all([
+      const [entreprisesData, toursData, saisonsData] = await Promise.all([
         getEntreprises(),
-        getTours()
+        getTours(),
+        getSaisons()
       ]);
       setEntreprises(entreprisesData);
       setTours(toursData);
-      const dateISO = selectedDate.toISOString().split('T')[0];
-      const journeesData = await getJourneesParDate(dateISO);
-      setJournees(journeesData);
+      setSaisons(saisonsData);
     };
     loadData();
   }, []);
 
-  // Recharge les journées quand la date change
+  // Charge les journées pour le mois sélectionné
   useEffect(() => {
     const loadJournees = async () => {
-      const dateISO = selectedDate.toISOString().split('T')[0];
-      const journeesData = await getJourneesParDate(dateISO);
+      const journeesData = await getJourneesParMois(selectedDate.getFullYear(), selectedDate.getMonth() + 1);
       setJournees(journeesData);
     };
     loadJournees();
-  }, [selectedDate]);
+  }, [selectedDate, showJourneeForm]);
 
-  const handleDeleteJournee = async (id: string) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette journée ?")) {
-      try {
-        await supprimerJournee(id);
-        const dateISO = selectedDate.toISOString().split('T')[0];
-        const updatedJournees = await getJourneesParDate(dateISO);
-        setJournees(updatedJournees);
-        alert("Journée supprimée avec succès !");
-      } catch (error) {
-        alert(`Erreur: ${error}`);
-      }
-    }
+  // Fonction pour obtenir la couleur d'une journée
+  const getJourneeCouleur = (journee: any) => {
+    const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
+    return entreprise?.couleur || '#555';
   };
 
-  return (
-    <div style={{
-      textAlign: 'center',
-      padding: '20px',
-      backgroundColor: '#1a1a1a',
-      color: 'white',
-      minHeight: '100vh',
-      fontFamily: 'Arial, sans-serif'
-    }}>
-      <h1>🚢 Planning Maritime</h1>
+  // Fonction pour obtenir les dates avec couleurs
+  const getDatesWithColors = () => {
+    const dates: { [key: string]: string } = {};
+    journees.forEach(journee => {
+      const dateStr = new Date(journee.date).toDateString();
+      dates[dateStr] = getJourneeCouleur(journee);
+    });
+    return dates;
+  };
+  const datesWithColors = getDatesWithColors();
 
-      {/* Onglets */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px', gap: '5px' }}>
-        <button
-          onClick={() => setOngletActif('planning')}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: ongletActif === 'planning' ? '#0078d4' : '#2a2a2a',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          Planning
-        </button>
-        <button
-          onClick={() => setOngletActif('entreprises')}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: ongletActif === 'entreprises' ? '#0078d4' : '#2a2a2a',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          Entreprises
-        </button>
-        <button
-          onClick={() => setOngletActif('saisons')}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: ongletActif === 'saisons' ? '#0078d4' : '#2a2a2a',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          Saisons
-        </button>
-        <button
-          onClick={() => setOngletActif('tours')}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: ongletActif === 'tours' ? '#0078d4' : '#2a2a2a',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          Tours
-        </button>
-      </div>
+  // Gestion des onglets
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'Planning':
+        return (
+          <div className="planning-container">
+            <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Planning Maritime</h2>
 
-      {/* Bouton pour ajouter une journée */}
-      {ongletActif === 'planning' && (
-        <div style={{ marginBottom: '20px' }}>
-          <button
-            onClick={() => {
-              setJourneeToEdit(null);
-              setShowJourneeForm(true);
-            }}
-            style={{
-              backgroundColor: '#0078d4',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              padding: '10px 20px',
-              cursor: 'pointer'
-            }}
-          >
-            Ajouter une journée
-          </button>
-        </div>
-      )}
+            {/* Calendrier */}
+            <div className="calendar-container">
+              <Calendar
+                onChange={setSelectedDate}
+                value={selectedDate}
+                locale="fr-FR"
+                tileContent={({ date, view }) => {
+                  if (view === 'month') {
+                    const dateStr = date.toDateString();
+                    if (datesWithColors[dateStr]) {
+                      return (
+                        <div style={{
+                          height: '100%',
+                          width: '100%',
+                          backgroundColor: datesWithColors[dateStr],
+                          borderRadius: '4px',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          opacity: 0.3,
+                          zIndex: 1
+                        }}></div>
+                      );
+                    }
+                  }
+                }}
+                className="react-calendar-custom"
+              />
+            </div>
 
-      {/* Contenu des onglets */}
-      {ongletActif === 'planning' && (
-        <div>
-          <Calendar
-            onChange={(date) => setSelectedDate(date)}
-            value={selectedDate}
-            locale="fr-FR"
-          />
-          <div style={{ marginTop: '20px', textAlign: 'left', maxWidth: '800px', margin: '0 auto' }}>
-            <h3>Journées pour le {selectedDate.toLocaleDateString('fr-FR')}</h3>
-            {journees.length > 0 ? (
+            {/* Liste des journées */}
+            <div style={{ marginTop: '20px' }}>
+              <h3>Journées pour le {selectedDate.toLocaleDateString('fr-FR')}</h3>
+              <button
+                className="add-journee-button"
+                onClick={() => {
+                  setJourneeToEdit(null);
+                  setShowJourneeForm(true);
+                }}
+              >
+                Ajouter une journée
+              </button>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {journees.map((journee) => {
-                  const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
-                  const tour = tours.find(t => t.id === journee.tourId);
-                  return (
-                    <div
-                      key={journee.id}
-                      style={{
-                        padding: '15px',
-                        backgroundColor: '#2a2a2a',
-                        borderRadius: '8px',
-                        borderLeft: `4px solid ${entreprise?.couleur || '#0078d4'}`,
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                        <div>
-                          <strong style={{ color: entreprise?.couleur || '#0078d4' }}>
-                            {entreprise?.nom || journee.entrepriseId}
-                          </strong>
-                          <span style={{ marginLeft: '15px' }}>{journee.role}</span>
-                          {tour && <span style={{ marginLeft: '15px' }}>Tour {tour.numero} - {tour.lignesDestinations.join(', ')}</span>}
+                {journees
+                  .filter(j => new Date(j.date).toDateString() === selectedDate.toDateString())
+                  .map((journee) => {
+                    const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
+                    const couleur = entreprise?.couleur || '#555';
+                    const tour = journee.tourId ? tours.find(t => t.id === journee.tourId) : null;
+
+                    return (
+                      <div
+                        key={journee.id}
+                        className="journee-card"
+                        style={{ borderLeft: `3px solid ${couleur}` }}
+                      >
+                        <div className="journee-card-header">
+                          {entreprise?.logo && (
+                            <img
+                              src={entreprise.logo}
+                              alt={entreprise.nom}
+                              style={{ width: '20px', height: '20px', marginRight: '8px', borderRadius: '3px' }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <div className="couleur-entreprise" style={{ backgroundColor: couleur }}></div>
+                          <strong>{entreprise?.nom || 'Entreprise inconnue'}</strong>
+                          <span style={{ color: '#aaa' }}>{journee.role}</span>
+                          {tour && <span> - Tour {tour.numero}</span>}
+                          {journee.lignesDestinations?.length > 0 && (
+                            <span> - {journee.lignesDestinations.join(', ')}</span>
+                          )}
                         </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+
+                        <div className="journee-card-info">
+                          <div>
+                            <span>⏰ {journee.heurePriseService} - {journee.heureFinService}</span>
+                            {journee.heureDepartPause && (
+                              <span> | Pause: {journee.heureDepartPause} - {journee.heureReprise}</span>
+                            )}
+                          </div>
+
+                          {journee.primes?.length > 0 && (
+                            <div style={{ marginTop: '6px' }}>
+                              <strong>Primes:</strong>
+                              <ul className="primes-list">
+                                {journee.primes.map((prime: any) => (
+                                  <li key={prime.id}>{prime.nom} (+{prime.montant} €)</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {journee.notes && (
+                            <div style={{ marginTop: '6px', fontSize: '13px', color: '#aaa' }}>
+                              📝 {journee.notes}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="journee-card-actions">
                           <button
+                            className="edit-button"
                             onClick={() => {
                               setJourneeToEdit(journee);
                               setShowJourneeForm(true);
                             }}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: '#0078d4',
-                              cursor: 'pointer',
-                              fontSize: '14px',
-                              padding: '4px 8px',
-                              borderRadius: '4px'
-                            }}
+                            title="Modifier"
                           >
-                            ✏️ Modifier
-                          </button>
-                          <button
-                            onClick={() => handleDeleteJournee(journee.id)}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: '#ff4444',
-                              cursor: 'pointer',
-                              fontSize: '14px',
-                              padding: '4px 8px',
-                              borderRadius: '4px'
-                            }}
-                          >
-                            🗑️
+                            ✏️
                           </button>
                         </div>
                       </div>
-                      <div style={{ marginTop: '10px' }}>
-                        <span>🕒 {journee.heurePriseService} - {journee.heureFinService}</span>
-                        {journee.heureDepartPause && <span> | Pause: {journee.heureDepartPause} - {journee.heureReprise}</span>}
-                      </div>
-                      {journee.lignesDestinations && (
-                        <div style={{ marginTop: '10px' }}>
-                          <strong>Lignes:</strong> {journee.lignesDestinations.join(', ')}
-                        </div>
-                      )}
-                      {journee.notes && <div style={{ marginTop: '10px', fontStyle: 'italic' }}>📝 {journee.notes}</div>}
-                      {journee.primes && journee.primes.length > 0 && (
-                        <div style={{ marginTop: '10px' }}>
-                          <strong>Primes:</strong>
-                          <ul style={{ margin: '5px 0 0 20px', padding: 0 }}>
-                            {journee.primes.map((prime: any, index: number) => (
-                              <li key={index}>{prime.nom}: {prime.montant} €</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
-            ) : (
-              <p style={{ color: '#888' }}>Aucune journée enregistrée pour cette date.</p>
+            </div>
+
+            {showJourneeForm && (
+              <JourneeForm
+                onClose={() => {
+                  setShowJourneeForm(false);
+                  setJourneeToEdit(null);
+                }}
+                onJourneeAjoutee={() => {
+                  getJourneesParMois(selectedDate.getFullYear(), selectedDate.getMonth() + 1).then(setJournees);
+                }}
+                date={selectedDate.toISOString().split('T')[0]}
+                journeeToEdit={journeeToEdit}
+                entreprises={entreprises}
+                tours={tours}
+              />
             )}
           </div>
-        </div>
-      )}
+        );
 
-      {ongletActif === 'entreprises' && <EntrepriseList />}
-      {ongletActif === 'saisons' && <SaisonsList />}
-      {ongletActif === 'tours' && <ToursList />}
+      case 'Entreprises':
+        return <EntrepriseList entreprises={entreprises} onEntreprisesUpdated={() => {}} />;
 
-      {/* Formulaire d'ajout/modification de journée */}
-      {showJourneeForm && (
-        <JourneeForm
-          onClose={() => {
-            setShowJourneeForm(false);
-            setJourneeToEdit(null);
-          }}
-          onJourneeAjoutee={() => {
-            const dateISO = selectedDate.toISOString().split('T')[0];
-            getJourneesParDate(dateISO).then(setJournees);
-          }}
-          date={selectedDate.toISOString().split('T')[0]}
-          journeeToEdit={journeeToEdit}
-          entreprises={entreprises}
-          tours={tours}
-        />
-      )}
+      case 'Saisons':
+        return <SaisonsList saisons={saisons} onSaisonsUpdated={() => {}} />;
+
+      case 'Tours':
+        return <ToursList tours={tours} onToursUpdated={() => {}} entreprises={entreprises} />;
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="app-container">
+      {/* Barre de navigation */}
+      <div className="app-header">
+       <img
+          src="/logo-bouee.png" // ✅ Chemin relatif depuis public/
+          alt="Logo"
+          className="app-logo"
+/>
+        <h1>Planning Maritime</h1>
+      </div>
+
+      {/* Onglets */}
+      <div className="tabs-container">
+        {['Planning', 'Entreprises', 'Saisons', 'Tours'].map((tab) => (
+          <button
+            key={tab}
+            className={`tab-button ${activeTab === tab ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab as any)}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Contenu de l'onglet actif */}
+      <div className="main-content">
+        {renderTabContent()}
+      </div>
     </div>
   );
 }
