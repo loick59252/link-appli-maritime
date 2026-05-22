@@ -233,7 +233,7 @@ button:focus {
   background-color: #005a9e;
 }
 
-.edit-button {
+.edit-button, .delete-button {
   background: none;
   border: none;
   color: #0078d4;
@@ -243,7 +243,7 @@ button:focus {
   line-height: 1;
 }
 
-.edit-button:hover {
+.edit-button:hover, .delete-button:hover{
   text-decoration: underline;
 }
 

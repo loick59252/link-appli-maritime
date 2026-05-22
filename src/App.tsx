@@ -2,10 +2,10 @@
 import { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import { getJourneesParMois } from './services/journees';
+import { getJourneesParMois, supprimerJournee } from './services/journees';
 import { getEntreprises } from './services/entreprises';
 import { getTours } from './services/tours';
-import { getSaisons} from './services/saisons';
+import { getSaisons } from './services/saisons';
 import JourneeForm from './components/JourneeForm';
 import { ToursList } from './components/ToursList';
 import { EntrepriseList } from './components/EntrepriseList';
@@ -66,6 +66,21 @@ function App() {
   };
   const datesWithColors = getDatesWithColors();
 
+  // Fonction pour supprimer une journée
+  const handleDeleteJournee = async (journeeId: string) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette journée ?")) {
+      try {
+        await supprimerJournee(journeeId);
+        // Recharge les journées pour le mois en cours
+        const journeesData = await getJourneesParMois(selectedDate.getFullYear(), selectedDate.getMonth() + 1);
+        setJournees(journeesData);
+        alert("Journée supprimée avec succès !");
+      } catch (error) {
+        alert(`Erreur lors de la suppression: ${error}`);
+      }
+    }
+  };
+
   // Gestion des onglets
   const renderTabContent = () => {
     switch (activeTab) {
@@ -73,6 +88,16 @@ function App() {
         return (
           <div className="planning-container">
             <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Planning Maritime</h2>
+
+          <button
+                className="add-journee-button"
+                onClick={() => {
+                  setJourneeToEdit(null);
+                  setShowJourneeForm(true);
+                }}
+              >
+                Ajouter une journée
+              </button>
 
             {/* Calendrier */}
             <div className="calendar-container">
@@ -106,17 +131,7 @@ function App() {
 
             {/* Liste des journées */}
             <div style={{ marginTop: '20px' }}>
-              <h3>Journées pour le {selectedDate.toLocaleDateString('fr-FR')}</h3>
-              <button
-                className="add-journee-button"
-                onClick={() => {
-                  setJourneeToEdit(null);
-                  setShowJourneeForm(true);
-                }}
-              >
-                Ajouter une journée
-              </button>
-
+              <h3>Journées pour le {selectedDate.toLocaleDateString('fr-FR')}</h3><br></br>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {journees
                   .filter(j => new Date(j.date).toDateString() === selectedDate.toDateString())
@@ -188,6 +203,14 @@ function App() {
                           >
                             ✏️
                           </button>
+                          {/* ✅ NOUVEAU: Bouton Supprimer */}
+                          <button
+                            className="delete-button"
+                            onClick={() => handleDeleteJournee(journee.id)}
+                            title="Supprimer"
+                          >
+                            🗑️
+                          </button>
                         </div>
                       </div>
                     );
@@ -232,7 +255,7 @@ function App() {
       {/* Barre de navigation */}
       <div className="app-header">
        <img
-          src="/logo-bouee.png" // ✅ Chemin relatif depuis public/
+          src="/logo-bouee.png"
           alt="Logo"
           className="app-logo"
 />
