@@ -251,7 +251,7 @@ button:focus {
 input, select, textarea {
   background-color: #2a2a2a;
   color: white;
-  border: 1px solid #444;
+  border: 1px solid #444 !important; /* ✅ Bordure visible */
   border-radius: 4px;
   padding: 8px;
   font-size: 14px;
@@ -261,10 +261,108 @@ input, select, textarea {
 
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: #0078d4;
+  border-color: #0078d4 !important; /* ✅ Bordure bleue au focus */
+  box-shadow: 0 0 0 1px #0078d4; /* ✅ Lueur bleue */
+}
+
+input[type="checkbox"] {
+  margin-right: 8px !important;
+  width: auto !important; /* ✅ Annule le width: 100% pour les checkboxes */
 }
 
 textarea {
   min-height: 50px;
   resize: vertical;
+}
+
+/* Ajoute ceci à ton index.css */
+.journee-non-travaillee {
+  border-left: 3px solid #666 !important;
+  opacity: 0.8;
+}
+
+.journee-non-travaillee .journee-card-header {
+  color: #aaa !important;
+}
+
+.journee-non-travaillee .couleur-entreprise {
+  background-color: #666 !important;
+}
+
+/* ===== STYLES POUR LES PRIMES DANS LES FORMULAIRES ===== */
+/* Conteneur des primes */
+.primes-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #444;
+  padding: 10px;
+  border-radius: 4px;
+  background-color: #1a1a1a;
+  margin-bottom: 12px;
+}
+
+/* Chaque prime dans la liste */
+.prime-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #333; /* ✅ Séparation visuelle */
+}
+
+.prime-item:last-child {
+  border-bottom: none; /* ✅ Pas de bordure pour le dernier élément */
+}
+
+.prime-item label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: white;
+  width: 100%; /* ✅ Prend toute la largeur */
+}
+
+/* Bouton "Ajouter une prime spéciale" */
+.add-prime-button {
+  background-color: #0078d4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.add-prime-button:hover {
+  background-color: #005a9e;
+}
+
+/* Ligne d'une prime spéciale */
+.prime-speciale-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.prime-speciale-line input[type="text"] {
+  flex: 1;
+  margin-right: 4px;
+}
+
+.prime-speciale-line input[type="number"] {
+  width: 80px;
+  margin-right: 4px;
+}
+
+.prime-speciale-line button {
+  background-color: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
 }
