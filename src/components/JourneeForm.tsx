@@ -58,72 +58,64 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
   const [tourSearch, setTourSearch] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState<boolean>(!!journeeToEdit);
 
-  // Charge les saisons, tours et primes
+  // Charge les saisons, tours et primes au montage initial
   useEffect(() => {
-    const loadData = async () => {
+    const loadInitialData = async () => {
       try {
-        const saisons = await getSaisons();
-        setSaisons(saisons);
+        const saisonsData = await getSaisons();
+        setSaisons(saisonsData);
 
-        // Détermine la saison automatique
+        // Détermine la saison pour la date initiale
         const dateToCheck = new Date(journeeToEdit?.date || initialDate || new Date());
-        const saisonTrouvee = saisons.find(saison => {
-          const debut = new Date(saison.dateDebut);
-          const fin = new Date(saison.dateFin);
-          return dateToCheck >= debut && dateToCheck <= fin;
-        });
-
-        if (saisonTrouvee) {
-          setSelectedSaisonId(saisonTrouvee.id);
-          const tours = allTours.filter(t =>
-            t.saisonId === saisonTrouvee.id &&
-            (t.entrepriseId === RDTPM_ID || !t.entrepriseId)
-          ).sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
-          setTours(tours);
-          setFilteredTours(tours);
-        } else if (saisons.length > 0) {
-          setSelectedSaisonId(saisons[0].id);
-          const tours = allTours.filter(t =>
-            t.saisonId === saisons[0].id &&
-            (t.entrepriseId === RDTPM_ID || !t.entrepriseId)
-          ).sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
-          setTours(tours);
-          setFilteredTours(tours);
-        }
-
-        // Charge les primes de l'entreprise sélectionnée
-        if (selectedEntrepriseId) {
-          const entreprise = entreprises.find(e => e.id === selectedEntrepriseId);
-          if (entreprise) {
-            setPrimesEntreprise(entreprise.primes || []);
-            // ✅ NE PAS PRÉ-SÉLECTIONNER LES PRIMES DE L'ENTREPRISE
-          }
-        } else if (entreprises.length > 0) {
-          setSelectedEntrepriseId(entreprises[0].id);
-          setPrimesEntreprise(entreprises[0].primes || []);
-          // ✅ NE PAS PRÉ-SÉLECTIONNER LES PRIMES DE L'ENTREPRISE
-        }
-
-        // Charge les primes sélectionnées depuis journeeToEdit
-        if (journeeToEdit?.primes) {
-          setPrimesSelectionnees(journeeToEdit.primes);
-        }
+        updateToursForDate(dateToCheck, saisonsData);
       } catch (error) {
         console.error("Erreur de chargement:", error);
       }
     };
-    loadData();
-  }, [selectedEntrepriseId, entreprises, journeeToEdit, initialDate, allTours]);
+    loadInitialData();
+  }, [journeeToEdit, initialDate, allTours]);
 
-  // Charge les tours quand la saison change
+  // Fonction pour mettre à jour les tours en fonction de la date
+  const updateToursForDate = (date: Date, saisonsData?: Saison[]) => {
+    const currentSaisons = saisonsData || saisons;
+    if (currentSaisons.length === 0) return;
+
+    const saisonTrouvee = currentSaisons.find(saison => {
+      const debut = new Date(saison.dateDebut);
+      const fin = new Date(saison.dateFin);
+      return date >= debut && date <= fin;
+    });
+
+    if (saisonTrouvee) {
+      setSelectedSaisonId(saisonTrouvee.id);
+      const filteredTours = allTours.filter(t =>
+        t.saisonId === saisonTrouvee.id &&
+        (t.entrepriseId === RDTPM_ID || !t.entrepriseId)
+      ).sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
+
+      setTours(filteredTours);
+      setFilteredTours(filteredTours);
+      setSelectedTourId(''); // Réinitialise le tour sélectionné
+    }
+  };
+
+  // Met à jour les tours quand la date change
+  useEffect(() => {
+    if (localDate) {
+      const dateObj = new Date(localDate);
+      updateToursForDate(dateObj);
+    }
+  }, [localDate, allTours, saisons]);
+
+  // Met à jour les tours quand la saison change
   useEffect(() => {
     if (selectedSaisonId) {
-      const tours = allTours.filter(t =>
+      const filtered = allTours.filter(t =>
         t.saisonId === selectedSaisonId &&
         (t.entrepriseId === RDTPM_ID || !t.entrepriseId)
       ).sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true }));
-      setTours(tours);
-      setFilteredTours(tours);
+      setTours(filtered);
+      setFilteredTours(filtered);
     }
   }, [selectedSaisonId, allTours]);
 
@@ -140,7 +132,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
     }
   }, [tourSearch, tours]);
 
-  // ✅ Charge les primes du tour sélectionné et DÉSÉLECTIONNE TOUT, puis coche UNIQUEMENT celles du tour
+  // Charge les primes du tour sélectionné
   useEffect(() => {
     if (selectedTourId && tours.length > 0) {
       const tour = tours.find(t => t.id === selectedTourId);
@@ -151,17 +143,32 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
         setHeureFinService(tour.heureFinService);
         setLignesDestinations(tour.lignesDestinations?.join(', ') || '');
         setPrimesTour(tour.primes || []);
-        // ✅ DÉSÉLECTIONNE TOUTES LES PRIMES, puis coche UNIQUEMENT celles du tour
         setPrimesSelectionnees(tour.primes || []);
       }
     } else {
-      // ✅ Si aucun tour sélectionné, désélectionne tout
       setPrimesTour([]);
       setPrimesSelectionnees([]);
     }
   }, [selectedTourId, tours]);
 
-  // Fusionne primes entreprise + primes tour (sans doublons)
+  // Charge les primes de l'entreprise sélectionnée
+  useEffect(() => {
+    if (selectedEntrepriseId) {
+      const entreprise = entreprises.find(e => e.id === selectedEntrepriseId);
+      if (entreprise) {
+        setPrimesEntreprise(entreprise.primes || []);
+      }
+    } else if (entreprises.length > 0) {
+      setSelectedEntrepriseId(entreprises[0].id);
+      setPrimesEntreprise(entreprises[0].primes || []);
+    }
+
+    if (journeeToEdit?.primes) {
+      setPrimesSelectionnees(journeeToEdit.primes);
+    }
+  }, [selectedEntrepriseId, entreprises, journeeToEdit]);
+
+  // Fusionne primes entreprise + primes tour
   const allPrimes = useMemo(() => {
     const primesMap = new Map<string, Prime>();
     primesEntreprise.forEach(prime => primesMap.set(prime.id, prime));
@@ -234,8 +241,11 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
             <input
               type="date"
               value={localDate}
-              onChange={(e) => setLocalDate(e.target.value)}
-              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+              onChange={(e) => {
+                setLocalDate(e.target.value);
+                setSelectedTourId(''); // Réinitialise le tour sélectionné
+              }}
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #444', fontSize: '14px' }}
               required
             />
           </div>
@@ -251,7 +261,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
                 setPrimesSelectionnees([]);
                 setPrimesSpeciales([]);
               }}
-              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #444', fontSize: '14px' }}
               required
             >
               {entreprisesOrdonnees.map((e) => (
@@ -300,12 +310,12 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
                 placeholder="Rechercher un tour..."
                 value={tourSearch}
                 onChange={(e) => setTourSearch(e.target.value)}
-                style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', marginBottom: '4px', fontSize: '14px' }}
+                style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #444', marginBottom: '4px', fontSize: '14px' }}
               />
               <select
                 value={selectedTourId}
                 onChange={(e) => setSelectedTourId(e.target.value)}
-                style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+                style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #444', fontSize: '14px' }}
               >
                 <option value="">-- Sélectionner un tour --</option>
                 {filteredTours.map((t) => (
@@ -324,7 +334,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
               type="time"
               value={heurePriseService}
               onChange={(e) => setHeurePriseService(e.target.value)}
-              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #444', fontSize: '14px' }}
               required
             />
           </div>
@@ -335,7 +345,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
               type="time"
               value={heureDepartPause}
               onChange={(e) => setHeureDepartPause(e.target.value)}
-              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #444', fontSize: '14px' }}
             />
           </div>
 
@@ -345,7 +355,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
               type="time"
               value={heureReprise}
               onChange={(e) => setHeureReprise(e.target.value)}
-              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #444', fontSize: '14px' }}
             />
           </div>
 
@@ -355,7 +365,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
               type="time"
               value={heureFinService}
               onChange={(e) => setHeureFinService(e.target.value)}
-              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #444', fontSize: '14px' }}
               required
             />
           </div>
@@ -369,7 +379,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
                 value={lignesDestinations}
                 onChange={(e) => setLignesDestinations(e.target.value)}
                 placeholder="Ex: 28M puis 8M"
-                style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
+                style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #444', fontSize: '14px' }}
               />
             </div>
           )}
@@ -440,7 +450,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
                     setPrimesSpeciales(newPrimes);
                   }}
                   placeholder="Nom"
-                  style={{ flex: 1, padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px', marginRight: '4px' }}
+                  style={{ flex: 1, padding: '6px', borderRadius: '4px', border: '1px solid #444', fontSize: '14px', marginRight: '4px' }}
                 />
                 <input
                   type="number"
@@ -451,7 +461,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
                     setPrimesSpeciales(newPrimes);
                   }}
                   placeholder="€"
-                  style={{ width: '80px', padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px', marginRight: '4px' }}
+                  style={{ width: '80px', padding: '6px', borderRadius: '4px', border: '1px solid #444', fontSize: '14px', marginRight: '4px' }}
                 />
                 <button
                   type="button"
@@ -477,7 +487,7 @@ const JourneeForm = ({ onClose, onJourneeAjoutee, date: initialDate, journeeToEd
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: 'none', minHeight: '50px', fontSize: '14px' }}
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #444', minHeight: '50px', fontSize: '14px' }}
               placeholder="Ex: Échange de tour avec Jean"
             />
           </div>
