@@ -10,6 +10,7 @@ import JourneeForm from './components/JourneeForm';
 import { ToursList } from './components/ToursList';
 import { EntrepriseList } from './components/EntrepriseList';
 import { SaisonsList } from './components/SaisonsList';
+import { RecapTab } from './components/RecapTab';
 
 // ID réel de RDTPM dans Firebase
 export const RDTPM_ID = "8TcUp0MYz2WsPq7aT2KP";
@@ -23,7 +24,7 @@ function App() {
   const [saisons, setSaisons] = useState<any[]>([]);
   const [showJourneeForm, setShowJourneeForm] = useState(false);
   const [journeeToEdit, setJourneeToEdit] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'Planning' | 'Entreprises' | 'Saisons' | 'Tours' | 'Semaines'>('Planning');
+  const [activeTab, setActiveTab] = useState<'Planning' | 'Semaines' | 'Récap' | 'Entreprises' | 'Saisons' | 'Tours'>('Planning');
 
   // Charge les données initiales
   useEffect(() => {
@@ -194,6 +195,16 @@ function App() {
   // Gestion des onglets
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'Récap':
+  return (
+    <RecapTab
+      journees={journees}
+      entreprises={entreprises}
+      selectedDate={selectedDate}
+      setSelectedDate={setSelectedDate}
+    />
+  );
+
       case 'Planning':
         return (
           <div className="planning-container">
@@ -404,15 +415,11 @@ function App() {
 
       {/* Onglets */}
       <div className="tabs-container">
-        {['Planning', 'Semaines', 'Entreprises', 'Saisons', 'Tours'].map((tab) => (
-          <button
-            key={tab}
-            className={`tab-button ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab as any)}
-          >
-            {tab}
-          </button>
-        ))}
+        {['Planning', 'Semaines', 'Récap', 'Entreprises', 'Saisons', 'Tours'].map((tab) => (
+  <button key={tab} className={`tab-button ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab as any)}>
+    {tab}
+  </button>
+))}
       </div>
 
       {/* Contenu de l'onglet actif */}

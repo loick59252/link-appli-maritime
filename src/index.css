@@ -439,3 +439,76 @@ textarea {
   color: #666;
   flex-direction: column;
 }
+
+/* ===== STYLES POUR L'ONGLET RECAP ===== */
+.recap-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.stat-card {
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.stat-card h3 {
+  color: #aaa;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.stat-card p {
+  margin: 0;
+  color: white;
+}
+
+.recap-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.recap-table th {
+  background-color: #1a1a1a;
+  text-align: left;
+  padding: 12px;
+  color: white;
+  font-weight: bold;
+}
+
+.recap-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #333;
+  color: #ddd;
+}
+
+.recap-table tr:last-child td {
+  border-bottom: none;
+}
+
+.recap-table tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ===== STYLES POUR ENTREPRISE LIST ===== */
+.entreprises-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.entreprise-card {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.entreprise-card:hover {
+  transform: translateY(-2px);
+}

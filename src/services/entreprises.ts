@@ -5,10 +5,15 @@ import { collection, getDocs, addDoc, deleteDoc, updateDoc, doc } from 'firebase
 type Entreprise = {
   id: string;
   nom: string;
-  salaireMatelot?: number;
-  salaireCapitaine?: number;
-  couleur?: string;
-  primes?: { id: string; nom: string; montant: number }[];
+  couleur: string;
+  salaireBase: number;
+  isSalaireBrut: boolean; // ✅ Nouveau: true = brut, false = net
+  primes: {
+    id: string;
+    nom: string;
+    montant: number;
+    isBrut: boolean; // ✅ Nouveau: pour chaque prime
+  }[];
 };
 
 export const getEntreprises = async (): Promise<Entreprise[]> => {
