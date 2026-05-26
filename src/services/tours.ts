@@ -1,6 +1,6 @@
 // src/services/tours.ts
+import { db } from '../firebaseConfig';
 import {
-  db,
   collection,
   addDoc,
   updateDoc,
@@ -9,7 +9,7 @@ import {
   query,
   where,
   doc
-} from '../firebaseConfig'; // ✅ Import depuis firebaseConfig
+} from "firebase/firestore";
 
 export type Tour = {
   id: string;

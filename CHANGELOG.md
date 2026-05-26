@@ -1,3 +1,6 @@
+## 2026-05-26 - 12:54:28
+- Commit '2026-05-26' - '12:54:28' - pas mal de bugs, a debug
+
 ## 2026-05-26 - 11:47:14
 - Commit '2026-05-26' - '11:47:14' - modif affichage form entreprise
 

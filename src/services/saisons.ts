@@ -1,13 +1,13 @@
 // src/services/saisons.ts
+import { db } from '../firebaseConfig';
 import {
-  db,
   collection,
   addDoc,
   updateDoc,
   deleteDoc,
   getDocs,
   doc
-} from '../firebaseConfig';
+} from "firebase/firestore";
 
 export type Saison = {
   id: string;
@@ -16,9 +16,6 @@ export type Saison = {
   dateFin: string;
 };
 
-/**
- * Ajoute une nouvelle saison
- */
 export const ajouterSaison = async (saison: Omit<Saison, 'id'>): Promise<string> => {
   try {
     const docRef = await addDoc(collection(db, 'saisons'), saison);
@@ -29,9 +26,6 @@ export const ajouterSaison = async (saison: Omit<Saison, 'id'>): Promise<string>
   }
 };
 
-/**
- * Met à jour une saison existante
- */
 export const mettreAJourSaison = async (id: string, saison: Partial<Saison>) => {
   try {
     await updateDoc(doc(db, 'saisons', id), saison);
@@ -41,10 +35,7 @@ export const mettreAJourSaison = async (id: string, saison: Partial<Saison>) => 
   }
 };
 
-/**
- * Supprime une saison
- */
-export const supprimerSaison = async (id: string) => {  // ✅ Fonction ajoutée
+export const supprimerSaison = async (id: string) => {
   try {
     await deleteDoc(doc(db, 'saisons', id));
   } catch (error) {
@@ -53,9 +44,6 @@ export const supprimerSaison = async (id: string) => {  // ✅ Fonction ajoutée
   }
 };
 
-/**
- * Récupère toutes les saisons
- */
 export const getSaisons = async (): Promise<Saison[]> => {
   try {
     const querySnapshot = await getDocs(collection(db, 'saisons'));

@@ -12,9 +12,6 @@ import { EntrepriseList } from './components/EntrepriseList';
 import { SaisonsList } from './components/SaisonsList';
 import { RecapTab } from './components/RecapTab';
 
-// Fonction pour récupérer l'ID de RDTPM depuis le localStorage
-export const getRdtpmId = (): string => localStorage.getItem('RDTPM_ID') || '';
-
 function App() {
   // États
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -25,19 +22,26 @@ function App() {
   const [showJourneeForm, setShowJourneeForm] = useState(false);
   const [journeeToEdit, setJourneeToEdit] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'Planning' | 'Semaines' | 'Récap' | 'Entreprises' | 'Saisons' | 'Tours'>('Planning');
-  const [rdtpmId, setRdtpmId] = useState<string>(getRdtpmId());
+  const [rdtpmId, setRdtpmId] = useState<string>(localStorage.getItem('RDTPM_ID') || "");
 
-  // Charge les données initiales
-  useEffect(() => {
-    const loadData = async () => {
+  // Fonction pour rafraîchir TOUTES les données
+  const refreshAllData = async () => {
+    try {
       const [entreprisesData, toursData, saisonsData] = await Promise.all([
         getEntreprises(),
         getTours(),
         getSaisons()
       ]);
+
       setEntreprises(entreprisesData);
       setTours(toursData);
       setSaisons(saisonsData);
+
+      // Rafraîchit les journées du mois en cours
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth() + 1;
+      const journeesData = await getJourneesParMois(year, month);
+      setJournees(journeesData);
 
       // Met à jour l'ID de RDTPM si trouvé
       const rdtpm = entreprisesData.find(e => e.nom === "RDTPM");
@@ -45,8 +49,14 @@ function App() {
         setRdtpmId(rdtpm.id);
         localStorage.setItem('RDTPM_ID', rdtpm.id);
       }
-    };
-    loadData();
+    } catch (error) {
+      console.error("Erreur lors du rafraîchissement des données:", error);
+    }
+  };
+
+  // Charge les données initiales
+  useEffect(() => {
+    refreshAllData();
   }, []);
 
   // Met à jour rdtpmId si les entreprises changent
@@ -88,11 +98,7 @@ function App() {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cette journée ?")) {
       try {
         await supprimerJournee(journeeId);
-        const year = selectedDate.getFullYear();
-        const month = selectedDate.getMonth() + 1;
-        const journeesData = await getJourneesParMois(year, month);
-        setJournees(journeesData);
-        alert("Journée supprimée avec succès !");
+        refreshAllData();
       } catch (error) {
         alert(`Erreur lors de la suppression: ${error}`);
       }
@@ -127,7 +133,6 @@ function App() {
             const jourSemaine = date.toLocaleDateString('fr-FR', { weekday: 'long' }).charAt(0).toUpperCase() +
                                date.toLocaleDateString('fr-FR', { weekday: 'long' }).slice(1);
 
-            // Calcule les heures
             let heuresTotales = 0;
             if (journee) {
               const [priseH, priseM] = journee.heurePriseService.split(':').map(Number);
@@ -227,11 +232,11 @@ function App() {
                 <h3>Statistiques du mois</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
                   <div className="stat-box">
-                    <span>Jours travaillés:</span>
+                    <span>Jours travaillés : </span>
                     <strong>{journees.filter(j => new Date(j.date).getMonth() === selectedDate.getMonth()).length}</strong>
                   </div>
                   <div className="stat-box">
-                    <span>Heures totales:</span>
+                    <span>Heures totales : </span>
                     <strong>{(() => {
                       let total = 0;
                       journees.filter(j => new Date(j.date).getMonth() === selectedDate.getMonth()).forEach(j => {
@@ -329,13 +334,16 @@ function App() {
         );
 
       case 'Entreprises':
-        return <EntrepriseList entreprises={entreprises} onEntreprisesUpdated={() => { const year = selectedDate.getFullYear(); const month = selectedDate.getMonth() + 1; getJourneesParMois(year, month).then(setJournees); }} rdtpmId={rdtpmId} setRdtpmId={setRdtpmId} />;
+        return <EntrepriseList entreprises={entreprises} onEntreprisesUpdated={refreshAllData} rdtpmId={rdtpmId} setRdtpmId={setRdtpmId} />;
 
       case 'Saisons':
-        return <SaisonsList saisons={saisons} onSaisonsUpdated={() => {}} />;
+        return <SaisonsList saisons={saisons} onSaisonsUpdated={refreshAllData} />;
 
       case 'Tours':
-        return <ToursList tours={tours} onToursUpdated={() => {}} entreprises={entreprises} rdtpmId={rdtpmId} />;
+        return <ToursList tours={tours} onToursUpdated={refreshAllData} entreprises={entreprises} rdtpmId={rdtpmId} />;
+
+      case 'Récap':
+        return <RecapTab journees={journees} entreprises={entreprises} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />;
 
       default:
         return null;
@@ -355,17 +363,18 @@ function App() {
       </div>
       <div className="main-content">
         {renderTabContent()}
-        {showJourneeForm && (
-          <JourneeForm
-            onClose={() => { setShowJourneeForm(false); setJourneeToEdit(null); }}
-            onJourneeAjoutee={() => { const year = selectedDate.getFullYear(); const month = selectedDate.getMonth() + 1; getJourneesParMois(year, month).then(setJournees); }}
-            date={selectedDate.toISOString().split('T')[0]}
-            journeeToEdit={journeeToEdit}
-            entreprises={entreprises}
-            tours={tours}
-            rdtpmId={rdtpmId}
-          />
-        )}
+{showJourneeForm && (
+  <JourneeForm
+    onClose={() => { setShowJourneeForm(false); setJourneeToEdit(null); }}
+    onJourneeAjoutee={refreshAllData}
+    date={selectedDate.toISOString().split('T')[0]}
+    journeeToEdit={journeeToEdit}
+    entreprises={entreprises}
+    tours={tours}
+    rdtpmId={rdtpmId}
+    setTours={setTours} // ✅ Ajoute cette ligne
+  />
+)}
       </div>
     </div>
   );

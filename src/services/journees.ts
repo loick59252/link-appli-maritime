@@ -1,6 +1,6 @@
 // src/services/journees.ts
+import { db } from '../firebaseConfig';
 import {
-  db,
   collection,
   addDoc,
   updateDoc,
@@ -9,7 +9,7 @@ import {
   query,
   where,
   doc
-} from '../firebaseConfig'; // ✅ Import depuis firebaseConfig
+} from "firebase/firestore";
 
 export const ajouterJournee = async (journee: any): Promise<string> => {
   try {
