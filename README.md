@@ -18,7 +18,9 @@
 
 ## Bugs / problèmes
 * Pb lors du choix de la date (Ex : je clique sur 1/6 et j'ai 31/5)
-* 
+* Devoir refresh la page pour voir les objets créés par formulaires
+* Remettre bouton pour supprimer une entreprise 
 
 ## A faire
 * Comparer le cahier des charges avec l'appli
+* tester les ajouts par formulaires et tester les fonctions rdtpm

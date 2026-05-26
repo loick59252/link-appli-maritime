@@ -1,8 +1,18 @@
 // src/firebaseConfig.ts
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  query,
+  where,
+  doc
+} from "firebase/firestore";
 
-// Ta configuration Firebase (à remplacer par tes valeurs)
+// Ta configuration Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAvzBdwVqiicoY-0gx8D5hGZzRjHU52Z4g",
   authDomain: "planning-maritime-loick.firebaseapp.com",
@@ -15,6 +25,19 @@ const firebaseConfig = {
 
 // Initialise Firebase
 const app = initializeApp(firebaseConfig);
+
+// Initialise Firestore
 const db = getFirestore(app);
 
-export { db };
+// Exporte tout ce dont tu as besoin
+export {
+  db,
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  query,
+  where,
+  doc
+};

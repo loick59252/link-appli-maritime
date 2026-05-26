@@ -1,8 +1,12 @@
 // src/components/SaisonsList.tsx
-import { useState, useEffect } from 'react';
-import { getSaisons, ajouterSaison, supprimerSaison } from '../services/saisons';
+import { useState } from 'react';
+import {
+  ajouterSaison,
+  mettreAJourSaison,
+  supprimerSaison,
+  getSaisons
+} from '../services/saisons';
 
-// Types locaux
 type Saison = {
   id: string;
   nom: string;
@@ -10,84 +14,258 @@ type Saison = {
   dateFin: string;
 };
 
-export const SaisonsList = () => {
-  const [saisons, setSaisons] = useState<Saison[]>([]);
-  const [nouvelleSaison, setNouvelleSaison] = useState<Omit<Saison, 'id'>>({
-    nom: '',
-    dateDebut: '',
-    dateFin: '',
-  });
+type SaisonsListProps = {
+  saisons: Saison[];
+  onSaisonsUpdated: () => void;
+};
 
-  useEffect(() => {
-    const chargerSaisons = async () => {
-      const saisons = await getSaisons();
-      setSaisons(saisons);
-    };
-    chargerSaisons();
-  }, []);
+export const SaisonsList = ({ saisons, onSaisonsUpdated }: SaisonsListProps) => {
+  const [editingSaison, setEditingSaison] = useState<Partial<Saison> & { id?: string } | null>(null);
 
-  const handleAjouterSaison = async () => {
-    if (!nouvelleSaison.nom || !nouvelleSaison.dateDebut || !nouvelleSaison.dateFin) {
-      alert("Veuillez remplir tous les champs (nom, date de début, date de fin).");
-      return;
-    }
-    await ajouterSaison(nouvelleSaison);
-    setNouvelleSaison({ nom: '', dateDebut: '', dateFin: '' });
-    const saisons = await getSaisons();
-    setSaisons(saisons);
-    alert("Saison ajoutée avec succès !");
+  const handleAddSaison = () => {
+    setEditingSaison({
+      nom: '',
+      dateDebut: new Date().toISOString().split('T')[0],
+      dateFin: new Date().toISOString().split('T')[0]
+    });
   };
 
-  return (
-    <div style={{ margin: '20px', backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px' }}>
-      <h2>Gestion des saisons</h2>
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        <input
-          type="text"
-          placeholder="Nom de la saison (ex: Hiver 2025-2026)"
-          value={nouvelleSaison.nom}
-          onChange={(e) => setNouvelleSaison({ ...nouvelleSaison, nom: e.target.value })}
-          style={{ padding: '8px', borderRadius: '4px', border: 'none', flex: 1, minWidth: '200px' }}
-          required
-        />
-        <input
-          type="date"
-          value={nouvelleSaison.dateDebut}
-          onChange={(e) => setNouvelleSaison({ ...nouvelleSaison, dateDebut: e.target.value })}
-          style={{ padding: '8px', borderRadius: '4px', border: 'none' }}
-          required
-        />
-        <input
-          type="date"
-          value={nouvelleSaison.dateFin}
-          onChange={(e) => setNouvelleSaison({ ...nouvelleSaison, dateFin: e.target.value })}
-          style={{ padding: '8px', borderRadius: '4px', border: 'none' }}
-          required
-        />
-        <button
-          onClick={handleAjouterSaison}
-          style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 15px', cursor: 'pointer' }}
-        >
-          Ajouter
-        </button>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' }}>
-        {saisons.map((saison) => (
-          <div key={saison.id} style={{ backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '8px' }}>
-            <h3 style={{ margin: '0 0 10px 0' }}>{saison.nom}</h3>
-            <p>Du {saison.dateDebut} au {saison.dateFin}</p>
-            <button
-              onClick={async () => {
-                await supprimerSaison(saison.id);
-                setSaisons(saisons.filter(s => s.id !== saison.id));
+  const handleEdit = (saison: Saison) => {
+    setEditingSaison({ ...saison });
+  };
+
+  const handleSave = async () => {
+    if (!editingSaison || !editingSaison.nom || !editingSaison.dateDebut || !editingSaison.dateFin) {
+      alert("Veuillez remplir tous les champs obligatoires.");
+      return;
+    }
+
+    try {
+      if (editingSaison.id) {
+        await mettreAJourSaison(editingSaison.id, editingSaison as Partial<Saison>);
+      } else {
+        await ajouterSaison(editingSaison as Omit<Saison, 'id'>);
+      }
+      onSaisonsUpdated();
+      setEditingSaison(null);
+    } catch (error) {
+      alert(`Erreur: ${error}`);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette saison ?")) {
+      try {
+        await supprimerSaison(id);  // ✅ Utilisation de la fonction
+        onSaisonsUpdated();
+      } catch (error) {
+        alert(`Erreur lors de la suppression: ${error}`);
+      }
+    }
+  };
+
+  if (editingSaison) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000
+      }}>
+        <div style={{
+          backgroundColor: '#2a2a2a',
+          padding: '20px',
+          borderRadius: '10px',
+          width: '90%',
+          maxWidth: '500px',
+          color: 'white'
+        }}>
+          <h2>{editingSaison.id ? 'Modifier' : 'Ajouter'} une saison</h2>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Nom</label>
+            <input
+              type="text"
+              value={editingSaison.nom || ''}
+              onChange={(e) => setEditingSaison({...editingSaison, nom: e.target.value})}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #444',
+                backgroundColor: '#1a1a1a',
+                color: 'white'
               }}
-              style={{ backgroundColor: '#ff4444', color: 'white', border: 'none', borderRadius: '4px', padding: '5px 10px', cursor: 'pointer' }}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Date de début</label>
+            <input
+              type="date"
+              value={editingSaison.dateDebut || ''}
+              onChange={(e) => setEditingSaison({...editingSaison, dateDebut: e.target.value})}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #444',
+                backgroundColor: '#1a1a1a',
+                color: 'white'
+              }}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Date de fin</label>
+            <input
+              type="date"
+              value={editingSaison.dateFin || ''}
+              onChange={(e) => setEditingSaison({...editingSaison, dateFin: e.target.value})}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #444',
+                backgroundColor: '#1a1a1a',
+                color: 'white'
+              }}
+              required
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <button
+              onClick={() => setEditingSaison(null)}
+              style={{
+                backgroundColor: '#555',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '8px 16px',
+                cursor: 'pointer'
+              }}
             >
-              Supprimer
+              Annuler
+            </button>
+            <button
+              onClick={handleSave}
+              style={{
+                backgroundColor: '#0078d4',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '8px 16px',
+                cursor: 'pointer'
+              }}
+            >
+              {editingSaison.id ? 'Enregistrer' : 'Ajouter'}
             </button>
           </div>
-        ))}
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="saisons-container">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ margin: 0 }}>Gestion des saisons</h2>
+        <button
+          onClick={handleAddSaison}
+          style={{
+            backgroundColor: '#0078d4',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            padding: '8px 16px',
+            cursor: 'pointer'
+          }}
+        >
+          + Ajouter une saison
+        </button>
+      </div>
+
+      {saisons.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {saisons.map((saison) => (
+            <div
+              key={saison.id}
+              className="saison-card"
+              style={{
+                backgroundColor: '#2a2a2a',
+                padding: '15px',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+              onClick={() => handleEdit(saison)}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ margin: 0, color: 'white' }}>{saison.nom}</h3>
+                  <p style={{ margin: '5px 0 0 0', color: '#aaa', fontSize: '14px' }}>
+                    Du {new Date(saison.dateDebut).toLocaleDateString('fr-FR')} au {new Date(saison.dateFin).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleEdit(saison); }}
+                    style={{
+                      backgroundColor: '#0078d4',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '6px 12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(saison.id); }}
+                    style={{
+                      backgroundColor: '#ff4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '6px 12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', marginTop: '40px' }}>
+          <p style={{ color: '#aaa' }}>Aucune saison trouvée.</p>
+          <button
+            onClick={handleAddSaison}
+            style={{
+              backgroundColor: '#0078d4',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '8px 16px',
+              cursor: 'pointer',
+              marginTop: '10px'
+            }}
+          >
+            + Ajouter votre première saison
+          </button>
+        </div>
+      )}
     </div>
   );
 };

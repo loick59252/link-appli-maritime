@@ -1,168 +1,252 @@
 // src/components/ToursList.tsx
-import { useState, useEffect } from 'react';
-import { getTours, supprimerTour } from './../services/tours';
-import { getSaisons } from './../services/saisons';
-import { getEntreprises } from './../services/entreprises';
-import { TourForm } from './TourForm';
-import { RDTPM_ID } from './../App';
+import { useState } from 'react';
+import { ajouterTour, mettreAJourTour, supprimerTour } from '../services/tours';
 
-export const ToursList = () => {
-  const [tours, setTours] = useState<any[]>([]);
-  const [saisons, setSaisons] = useState<any[]>([]);
-  const [entreprises, setEntreprises] = useState<any[]>([]);
-  const [showTourForm, setShowTourForm] = useState(false);
-  const [tourToEdit, setTourToEdit] = useState<any>(null);
-  const [selectedSaisonId, setSelectedSaisonId] = useState<string>(''); // ✅ Nouveau state pour la saison sélectionnée
+type Tour = {
+  id: string;
+  numero: string;
+  saisonId: string;
+  entrepriseId: string;
+  heurePriseService: string;
+  heureDepartPause?: string;
+  heureReprise?: string;
+  heureFinService: string;
+  lignesDestinations: string[];
+  primes?: { id: string; nom: string; montant: number }[];
+};
 
-  useEffect(() => {
-    const loadData = async () => {
-      const [toursData, saisonsData, entreprisesData] = await Promise.all([
-        getTours(),
-        getSaisons(),
-        getEntreprises()
-      ]);
-      setTours(toursData);
-      setSaisons(saisonsData);
-      setEntreprises(entreprisesData);
-      // ✅ Sélectionne la première saison par défaut
-      if (saisonsData.length > 0) {
-        setSelectedSaisonId(saisonsData[0].id);
+type ToursListProps = {
+  tours: Tour[];
+  onToursUpdated: () => void;
+  entreprises: any[];
+  rdtpmId: string; // ✅ Reçoit rdtpmId en prop
+};
+
+export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: ToursListProps) => {
+  const [editingTour, setEditingTour] = useState<Partial<Tour> & { id?: string } | null>(null);
+  const [newLigne, setNewLigne] = useState('');
+
+  const handleAddTour = () => {
+    setEditingTour({
+      numero: '',
+      saisonId: '',
+      entrepriseId: rdtpmId, // ✅ Utilise rdtpmId ici
+      heurePriseService: '08:00',
+      heureFinService: '16:00',
+      lignesDestinations: []
+    });
+  };
+
+  const handleEdit = (tour: Tour) => setEditingTour({ ...tour });
+
+  const handleSave = async () => {
+    if (!editingTour || !editingTour.numero || !editingTour.saisonId || !editingTour.entrepriseId) return;
+
+    try {
+      if (editingTour.id) {
+        await mettreAJourTour(editingTour.id, editingTour as Tour);
+      } else {
+        await ajouterTour(editingTour as Omit<Tour, 'id'>);
       }
-    };
-    loadData();
-  }, []);
-
-  // ✅ Filtre combiné : RDTPM + saison sélectionnée
-  const filteredTours = tours.filter(t =>
-    (t.entrepriseId === RDTPM_ID || !t.entrepriseId) &&
-    (selectedSaisonId ? t.saisonId === selectedSaisonId : true) // ✅ Filtre par saison
-  );
-
-  const handleDeleteTour = async (id: string) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce tour ?")) {
-      try {
-        await supprimerTour(id);
-        setTours(tours.filter(t => t.id !== id));
-        alert("Tour supprimé avec succès !");
-      } catch (error) {
-        alert(`Erreur: ${error}`);
-      }
+      onToursUpdated();
+      setEditingTour(null);
+    } catch (error) {
+      alert(`Erreur: ${error}`);
     }
   };
 
-  return (
-    <div>
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>Tours de service (RDTPM uniquement)</h3>
+  const handleAddLigne = () => {
+    if (!editingTour || !newLigne) return;
+    setEditingTour({
+      ...editingTour,
+      lignesDestinations: [...(editingTour.lignesDestinations || []), newLigne]
+    });
+    setNewLigne('');
+  };
 
-        {/* ✅ Sélecteur de saison */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <label style={{ fontSize: '14px' }}>Saison:</label>
-          <select
-            value={selectedSaisonId}
-            onChange={(e) => setSelectedSaisonId(e.target.value)}
-            style={{ padding: '6px', borderRadius: '4px', border: 'none', fontSize: '14px' }}
-          >
-            <option value="">Toutes les saisons</option>
-            {saisons.map((s) => (
-              <option key={s.id} value={s.id}>{s.nom}</option>
-            ))}
-          </select>
+  const handleRemoveLigne = (ligne: string) => {
+    if (!editingTour) return;
+    setEditingTour({
+      ...editingTour,
+      lignesDestinations: (editingTour.lignesDestinations || []).filter(l => l !== ligne)
+    });
+  };
+
+  if (editingTour) {
+    return (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center',
+        alignItems: 'center', zIndex: 1000, overflowY: 'auto', padding: '20px'
+      }}>
+        <div style={{
+          backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '10px',
+          width: '90%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto',
+          color: 'white', boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+        }}>
+          <h2>{editingTour.id ? 'Modifier' : 'Ajouter'} un tour</h2>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Numéro</label>
+            <input
+              type="text"
+              value={editingTour.numero || ''}
+              onChange={(e) => setEditingTour({...editingTour, numero: e.target.value})}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Entreprise</label>
+            <select
+              value={editingTour.entrepriseId || rdtpmId}
+              onChange={(e) => setEditingTour({...editingTour, entrepriseId: e.target.value})}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+            >
+              {entreprises.map(e => (
+                <option key={e.id} value={e.id}>{e.nom}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Saison</label>
+            <select
+              value={editingTour.saisonId || ''}
+              onChange={(e) => setEditingTour({...editingTour, saisonId: e.target.value})}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+            >
+              <option value="">-- Sélectionner une saison --</option>
+              {/* À compléter avec tes saisons */}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Heure de prise de service</label>
+            <input
+              type="time"
+              value={editingTour.heurePriseService || ''}
+              onChange={(e) => setEditingTour({...editingTour, heurePriseService: e.target.value})}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Heure de fin de service</label>
+            <input
+              type="time"
+              value={editingTour.heureFinService || ''}
+              onChange={(e) => setEditingTour({...editingTour, heureFinService: e.target.value})}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Lignes de destination</label>
+            <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '8px' }}>
+              {(editingTour.lignesDestinations || []).map(ligne => (
+                <div key={ligne} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span>{ligne}</span>
+                  <button
+                    onClick={() => handleRemoveLigne(ligne)}
+                    style={{ backgroundColor: '#ff4444', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={newLigne}
+                onChange={(e) => setNewLigne(e.target.value)}
+                placeholder="Nouvelle ligne"
+                style={{ flex: 1, padding: '6px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+              />
+              <button
+                onClick={handleAddLigne}
+                style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}
+              >
+                + Ajouter
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+            <button
+              onClick={() => setEditingTour(null)}
+              style={{ backgroundColor: '#555', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer' }}
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleSave}
+              style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer' }}
+            >
+              {editingTour.id ? 'Enregistrer' : 'Ajouter'}
+            </button>
+          </div>
         </div>
+      </div>
+    );
+  }
 
+  return (
+    <div className="tours-container">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ margin: 0 }}>Gestion des tours</h2>
         <button
-          onClick={() => {
-            setTourToEdit(null);
-            setShowTourForm(true);
-          }}
-          style={{
-            backgroundColor: '#0078d4',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            padding: '6px 12px',
-            cursor: 'pointer',
-            marginLeft: 'auto'
-          }}
+          onClick={handleAddTour}
+          style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer' }}
         >
-          Ajouter un tour
+          + Ajouter un tour
         </button>
       </div>
 
-      <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-        {filteredTours.length > 0 ? (
-          <table style={{ width: '100%', borderCollapse: 'collapse', color: 'white', fontSize: '14px' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#2a2a2a' }}>
-                <th style={{ padding: '8px', textAlign: 'left', borderBottom: '1px solid #444' }}>Numéro</th>
-                <th style={{ padding: '8px', textAlign: 'left', borderBottom: '1px solid #444' }}>Saison</th>
-                <th style={{ padding: '8px', textAlign: 'left', borderBottom: '1px solid #444' }}>Heures</th>
-                <th style={{ padding: '8px', textAlign: 'left', borderBottom: '1px solid #444' }}>Lignes</th>
-                <th style={{ padding: '8px', textAlign: 'left', borderBottom: '1px solid #444' }}>Primes</th>
-                <th style={{ padding: '8px', textAlign: 'left', borderBottom: '1px solid #444' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTours.map((tour) => {
-                const saison = saisons.find(s => s.id === tour.saisonId);
-                return (
-                  <tr key={tour.id} style={{ borderBottom: '1px solid #444' }}>
-                    <td style={{ padding: '8px' }}>{tour.numero}</td>
-                    <td style={{ padding: '8px' }}>{saison?.nom || tour.saisonId}</td>
-                    <td style={{ padding: '8px' }}>
-                      {tour.heurePriseService} - {tour.heureFinService}
-                      {tour.heureDepartPause && <><br />Pause: {tour.heureDepartPause} - {tour.heureReprise}</>}
-                    </td>
-                    <td style={{ padding: '8px' }}>{tour.lignesDestinations?.join(', ') || '-'}</td>
-                    <td style={{ padding: '8px' }}>
-                      {tour.primes?.length > 0 ? (
-                        <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                          {tour.primes.map((p: any) => (
-                            <li key={p.id}>{p.nom} (+{p.montant}€)</li>
-                          ))}
-                        </ul>
-                      ) : '-'}
-                    </td>
-                    <td style={{ padding: '8px' }}>
-                      <button
-                        onClick={() => {
-                          setTourToEdit(tour);
-                          setShowTourForm(true);
-                        }}
-                        style={{ background: 'none', border: 'none', color: '#0078d4', cursor: 'pointer', marginRight: '10px', fontSize: '14px' }}
-                        title="Modifier"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTour(tour.id)}
-                        style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '14px' }}
-                        title="Supprimer"
-                      >
-                        🗑️
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        ) : (
-          <p style={{ color: '#888' }}>Aucun tour trouvé pour RDTPM {selectedSaisonId ? `dans la saison ${saisons.find(s => s.id === selectedSaisonId)?.nom}` : ''}.</p>
-        )}
-      </div>
-
-      {showTourForm && (
-        <TourForm
-          onClose={() => {
-            setShowTourForm(false);
-            setTourToEdit(null);
-          }}
-          onTourAjoute={() => {
-            getTours().then(setTours);
-          }}
-          tourToEdit={tourToEdit}
-        />
+      {tours.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {tours.map((tour) => (
+            <div
+              key={tour.id}
+              className="tour-card"
+              style={{ backgroundColor: '#2a2a2a', padding: '15px', borderRadius: '8px', cursor: 'pointer' }}
+              onClick={() => handleEdit(tour)}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ margin: 0, color: 'white' }}>Tour {tour.numero}</h3>
+                  <p style={{ margin: '5px 0 0 0', color: '#aaa', fontSize: '14px' }}>
+                    {entreprises.find(e => e.id === tour.entrepriseId)?.nom || 'Entreprise inconnue'} -
+                    Heures: {tour.heurePriseService} - {tour.heureFinService}
+                  </p>
+                  {tour.lignesDestinations.length > 0 && (
+                    <div style={{ marginTop: '8px' }}>
+                      <strong style={{ color: '#aaa' }}>Lignes:</strong>
+                      <span style={{ marginLeft: '8px' }}>{tour.lignesDestinations.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleEdit(tour); }}
+                  style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer' }}
+                >
+                  Modifier
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', marginTop: '40px' }}>
+          <p style={{ color: '#aaa' }}>Aucun tour trouvé.</p>
+          <button
+            onClick={handleAddTour}
+            style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', cursor: 'pointer', marginTop: '10px' }}
+          >
+            + Ajouter votre premier tour
+          </button>
+        </div>
       )}
     </div>
   );

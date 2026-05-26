@@ -1,75 +1,62 @@
 // src/services/journees.ts
-import { db } from '../firebaseConfig'; // ✅ ./firebaseConfig
-import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where } from 'firebase/firestore';
+import {
+  db,
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  query,
+  where,
+  doc
+} from '../firebaseConfig'; // ✅ Import depuis firebaseConfig
 
-// Types
-type Prime = { id: string; nom: string; montant: number };
-type Journee = {
-  id: string;
-  date: string;
-  entrepriseId: string;
-  role: 'Matelot' | 'Capitaine';
-  tourId?: string;
-  saisonId?: string;
-  heurePriseService: string;
-  heureDepartPause?: string;
-  heureReprise?: string;
-  heureFinService: string;
-  lignesDestinations?: string[];
-  primes: Prime[];
-  notes?: string;
+export const ajouterJournee = async (journee: any): Promise<string> => {
+  try {
+    const docRef = await addDoc(collection(db, 'journees'), journee);
+    return docRef.id;
+  } catch (error) {
+    console.error("Erreur lors de l'ajout de la journée:", error);
+    throw error;
+  }
 };
 
-// Fonctions
-export const ajouterJournee = async (journee: Omit<Journee, 'id'>) => {
-  const docRef = await addDoc(collection(db, "journees"), journee);
-  return docRef.id;
-};
-
-export const getJournees = async (): Promise<Journee[]> => {
-  const querySnapshot = await getDocs(collection(db, "journees"));
-  const journees: Journee[] = [];
-  querySnapshot.forEach((doc) => {
-    journees.push({ id: doc.id, ...doc.data() } as Journee);
-  });
-  return journees;
-};
-
-export const getJourneesParDate = async (date: string): Promise<Journee[]> => {
-  const q = query(collection(db, "journees"), where("date", "==", date));
-  const querySnapshot = await getDocs(q);
-  const journees: Journee[] = [];
-  querySnapshot.forEach((doc) => {
-    journees.push({ id: doc.id, ...doc.data() } as Journee);
-  });
-  return journees;
+export const mettreAJourJournee = async (id: string, journee: any) => {
+  try {
+    await updateDoc(doc(db, 'journees', id), journee);
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour de la journée:", error);
+    throw error;
+  }
 };
 
 export const supprimerJournee = async (id: string) => {
-  await deleteDoc(doc(db, "journees", id));
+  try {
+    await deleteDoc(doc(db, 'journees', id));
+  } catch (error) {
+    console.error("Erreur lors de la suppression de la journée:", error);
+    throw error;
+  }
 };
 
-export const mettreAJourJournee = async (id: string, journee: Partial<Journee>) => {
-  await updateDoc(doc(db, "journees", id), journee);
-};
+export const getJourneesParMois = async (year: number, month: number): Promise<any[]> => {
+  try {
+    const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
 
-/**
- * Récupère toutes les journées pour un mois donné
- */
-export const getJourneesParMois = async (annee: number, mois: number) => {
-  const startDate = new Date(annee, mois - 1, 1);
-  const endDate = new Date(annee, mois, 0, 23, 59, 59);
+    const q = query(
+      collection(db, 'journees'),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate)
+    );
 
-  const q = query(
-    collection(db, "journees"),
-    where("date", ">=", startDate.toISOString().split('T')[0]),
-    where("date", "<=", endDate.toISOString().split('T')[0])
-  );
-
-  const querySnapshot = await getDocs(q);
-  const journees: any[] = [];
-  querySnapshot.forEach((doc) => {
-    journees.push({ id: doc.id, ...doc.data() });
-  });
-  return journees;
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error(`Erreur lors de la récupération des journées pour ${month}/${year}:`, error);
+    throw error;
+  }
 };

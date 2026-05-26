@@ -1,3 +1,6 @@
+## 2026-05-26 - 11:47:14
+- Commit '2026-05-26' - '11:47:14' - modif affichage form entreprise
+
 ## 2026-05-25 - 23:31:29
 - Commit '2026-05-25' - '23:31:29' - mise à jour du readme
 
