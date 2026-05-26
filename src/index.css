@@ -512,3 +512,26 @@ textarea {
 .entreprise-card:hover {
   transform: translateY(-2px);
 }
+
+/* Pour les modales */
+.modal-backdrop {
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Pour les formulaires dans les modales */
+.modal-content {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Pour les lignes de primes */
+.prime-row {
+  flex-wrap: wrap;
+}
+
+/* Pour les inputs dans les modales */
+.modal-input {
+  min-width: 120px;
+  flex: 1;
+}
