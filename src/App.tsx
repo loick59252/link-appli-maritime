@@ -37,13 +37,11 @@ function App() {
       setTours(toursData);
       setSaisons(saisonsData);
 
-      // Rafraîchit les journées du mois en cours
       const year = selectedDate.getFullYear();
       const month = selectedDate.getMonth() + 1;
       const journeesData = await getJourneesParMois(year, month);
       setJournees(journeesData);
 
-      // Met à jour l'ID de RDTPM si trouvé
       const rdtpm = entreprisesData.find(e => e.nom === "RDTPM");
       if (rdtpm?.id && rdtpm.id !== rdtpmId) {
         setRdtpmId(rdtpm.id);
@@ -54,12 +52,10 @@ function App() {
     }
   };
 
-  // Charge les données initiales
   useEffect(() => {
     refreshAllData();
   }, []);
 
-  // Rafraîchit les journées quand le mois change
   useEffect(() => {
     const loadJourneesForMonth = async () => {
       const year = selectedDate.getFullYear();
@@ -70,7 +66,6 @@ function App() {
     loadJourneesForMonth();
   }, [selectedDate.getMonth(), selectedDate.getFullYear()]);
 
-  // Met à jour rdtpmId si les entreprises changent
   useEffect(() => {
     const rdtpm = entreprises.find(e => e.nom === "RDTPM");
     if (rdtpm?.id && rdtpm.id !== rdtpmId) {
@@ -79,13 +74,11 @@ function App() {
     }
   }, [entreprises, rdtpmId]);
 
-  // Fonction pour obtenir la couleur d'une journée
   const getJourneeCouleur = (journee: any) => {
     const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
     return entreprise?.couleur || '#555';
   };
 
-  // Fonction pour obtenir le lundi d'une semaine
   const getStartOfWeek = (date: Date): Date => {
     const d = new Date(date);
     const day = d.getDay();
@@ -93,7 +86,6 @@ function App() {
     return new Date(d.setDate(diff));
   };
 
-  // Fonction pour supprimer une journée
   const handleDeleteJournee = async (journeeId: string) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cette journée ?")) {
       try {
@@ -108,7 +100,6 @@ function App() {
     }
   };
 
-  // Composant pour afficher une semaine avec récap
   const SemaineView = ({ dateDebut, onDeleteJournee, title = '' }: {
     dateDebut: Date;
     onDeleteJournee: (id: string) => void;
@@ -126,7 +117,6 @@ function App() {
       return journees.find(j => j.date === dateStr);
     };
 
-    // Calcul des stats pour la semaine
     const journeesSemaine = jours
       .map(day => getJourneeForDate(day))
       .filter(j => j !== undefined);
@@ -146,7 +136,6 @@ function App() {
       }
       totalMinutesSemaine += mins;
 
-      // Stats par entreprise
       const entrepriseId = journee.entrepriseId;
       if (!entreprisesSemaine[entrepriseId]) {
         entreprisesSemaine[entrepriseId] = { jours: 0, minutes: 0 };
@@ -161,8 +150,6 @@ function App() {
     return (
       <div className="semaine-view">
         <h3>{title}</h3>
-
-        {/* Affichage des jours de la semaine */}
         <div className="semaine-jours">
           {jours.map((date) => {
             const journee = getJourneeForDate(date);
@@ -190,30 +177,27 @@ function App() {
                   <span>{date.toLocaleDateString('fr-FR')}</span>
                 </div>
                 {journee ? (
-                  <div className="journee-card semaine-journee-card" style={{ borderLeft: `3px solid ${getJourneeCouleur(journee)}` }}>
+                  <div className="journee-card semaine-journee-card" style={{ borderLeftColor: getJourneeCouleur(journee) }}>
                     <div className="journee-card-header">
                       {entreprises.find(e => e.id === journee.entrepriseId)?.logo && (
-                        <img src={entreprises.find(e => e.id === journee.entrepriseId).logo} alt="" style={{ width: '16px', height: '16px', marginRight: '6px', borderRadius: '3px' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                        <img src={entreprises.find(e => e.id === journee.entrepriseId).logo} alt="" className="entreprise-logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       )}
-                      <div className="couleur-entreprise" style={{ backgroundColor: getJourneeCouleur(journee), width: '12px', height: '12px' }}></div>
-                      <strong style={{ fontSize: '13px' }}>{entreprises.find(e => e.id === journee.entrepriseId)?.nom || 'Entreprise'}</strong>
-                      <span style={{ color: '#aaa', fontSize: '12px' }}>
-                        {journee.role}
-                      </span>
+                      <strong>{entreprises.find(e => e.id === journee.entrepriseId)?.nom || 'Entreprise'}</strong>
+                      <span>{journee.role}</span>
                     </div>
-                    <div className="journee-card-info" style={{ fontSize: '12px' }}>
-                      <div><span>⏰ {journee.heurePriseService} - {journee.heureFinService}</span></div>
-                      <div style={{ marginTop: '4px' }}><span>Total: {heuresTotales.toFixed(2)} h</span></div>
+                    <div className="journee-card-info">
+                      <div>⏰ {journee.heurePriseService} - {journee.heureFinService}</div>
+                      <div>Total: {heuresTotales.toFixed(2)} h</div>
                     </div>
                     <div className="journee-card-actions">
-                      <button className="edit-button" onClick={() => { setJourneeToEdit(journee); setShowJourneeForm(true); }} title="Modifier" style={{ fontSize: '12px' }}>✏️</button>
-                      <button className="delete-button" onClick={() => onDeleteJournee(journee.id)} title="Supprimer" style={{ fontSize: '12px' }}>🗑️</button>
+                      <button className="edit-button" onClick={() => { setJourneeToEdit(journee); setShowJourneeForm(true); }}>✏️</button>
+                      <button className="delete-button" onClick={() => onDeleteJournee(journee.id)}>🗑️</button>
                     </div>
                   </div>
                 ) : (
                   <div className="journee-card journee-non-travaillee semaine-journee-card">
-                    <div className="journee-card-header" style={{ justifyContent: 'center' }}><strong style={{ fontSize: '13px' }}>En repos</strong></div>
-                    <div style={{ textAlign: 'center', color: '#666', fontSize: '12px' }}>0 h</div>
+                    <div className="journee-card-header"><strong>En repos</strong></div>
+                    <div>0 h</div>
                   </div>
                 )}
               </div>
@@ -221,59 +205,38 @@ function App() {
           })}
         </div>
 
-        {/* ========== RÉCAPITULATIF HEBDOMADAIRE ========== */}
         <div className="week-recap">
           <h4>Récapitulatif de la semaine</h4>
-
-          {/* Stats globales */}
-          <div style={{ marginBottom: '10px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+          <div>
+            <div>
               <div className="stat-box">
                 <span>Jours travaillés:</span>
                 <strong>{journeesSemaine.length}</strong>
               </div>
               <div className="stat-box">
                 <span>Heures totales:</span>
-                <strong>
-                  {heuresSemaine}h{minutesSemaine > 0 ? ` ${minutesSemaine}min` : ''} ({(totalMinutesSemaine / 60).toFixed(2)}h)
-                </strong>
+                <strong>{heuresSemaine}h{minutesSemaine > 0 ? ` ${minutesSemaine}min` : ''} ({(totalMinutesSemaine / 60).toFixed(2)}h)</strong>
               </div>
             </div>
           </div>
-
-          {/* Stats par entreprise */}
           <div>
-            <h4 style={{ marginBottom: '10px' }}>Par entreprise</h4>
+            <h4>Par entreprise</h4>
             {Object.entries(entreprisesSemaine).length > 0 ? (
               Object.entries(entreprisesSemaine).map(([entrepriseId, stats]) => {
                 const entreprise = entreprises.find(e => e.id === entrepriseId);
                 if (!entreprise) return null;
-
                 const heures = Math.floor(stats.minutes / 60);
                 const minutes = stats.minutes % 60;
-
                 return (
-                  <div key={entrepriseId} style={{
-                    marginBottom: '8px',
-                    padding: '8px',
-                    backgroundColor: '#2a2a2a',
-                    borderRadius: '4px',
-                    borderLeft: `3px solid ${entreprise.couleur || '#555'}`
-                  }}>
+                  <div key={entrepriseId} style={{ borderLeftColor: entreprise.couleur || '#555' }}>
                     <strong>{entreprise.nom}</strong>
-                    <div>
-                      Jours: {stats.jours} |
-                      Heures: {heures}h{minutes > 0 ? ` ${minutes}min` : ''} ({(stats.minutes / 60).toFixed(2)}h)
-                    </div>
+                    <div>Jours: {stats.jours} | Heures: {heures}h{minutes > 0 ? ` ${minutes}min` : ''} ({(stats.minutes / 60).toFixed(2)}h)</div>
                   </div>
                 );
               })
             ) : (
-              <div className="journee-card journee-non-travaillee" style={{ marginTop: '10px' }}>
-                <div className="journee-card-header">
-                  <div className="couleur-entreprise" style={{ backgroundColor: '#666' }}></div>
-                  <strong>Aucune journée enregistrée pour cette semaine</strong>
-                </div>
+              <div className="journee-card journee-non-travaillee">
+                <div className="journee-card-header"><strong>Aucune journée enregistrée pour cette semaine</strong></div>
               </div>
             )}
           </div>
@@ -282,26 +245,20 @@ function App() {
     );
   };
 
-  // Gestion des onglets
   const renderTabContent = () => {
     switch (activeTab) {
       case 'Récap':
         return <RecapTab journees={journees} entreprises={entreprises} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />;
-
       case 'Planning':
         return (
           <div className="planning-container">
-            <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Planning Maritime</h2>
-            <button className="add-journee-button" onClick={() => {
-              setJourneeToEdit(null);
-              setShowJourneeForm(true);
-            }}>Ajouter une journée</button>
-
+            <h2>Planning Maritime</h2>
+            <button className="add-journee-button" onClick={() => { setJourneeToEdit(null); setShowJourneeForm(true); }}>
+              Ajouter une journée
+            </button>
             <div className="calendar-container">
               <Calendar
-                onChange={(date) => {
-                  setSelectedDate(date);
-                }}
+                onChange={(date) => setSelectedDate(date)}
                 value={selectedDate}
                 locale="fr-FR"
                 tileContent={({ date, view }) => {
@@ -310,33 +267,29 @@ function App() {
                     const journee = journees.find(j => j.date === dateStr);
                     if (journee) {
                       const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
-                      return (
-                        <div style={{
-                          height: '100%',
-                          width: '100%',
-                          backgroundColor: entreprise?.couleur || '#555',
-                          borderRadius: '4px',
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          opacity: 0.3,
-                          zIndex: 1
-                        }}></div>
-                      );
+                      return <div style={{
+                        height: '100%',
+                        width: '100%',
+                        backgroundColor: entreprise?.couleur || '#555',
+                        borderRadius: '4px',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        opacity: 0.3,
+                        zIndex: 1
+                      }}></div>;
                     }
                   }
                 }}
                 className="react-calendar-custom"
               />
             </div>
-
-            <div style={{ marginTop: '20px' }}>
-              <h3>Journée du {selectedDate.toLocaleDateString('fr-FR')}</h3><br />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div>
+              <h3>Journée du {selectedDate.toLocaleDateString('fr-FR')}</h3>
+              <div>
                 {journees.filter(j => j.date === selectedDate.toISOString().split('T')[0]).length > 0 ? (
                   journees.filter(j => j.date === selectedDate.toISOString().split('T')[0]).map((journee) => {
                     const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
-                    const couleur = entreprise?.couleur || '#555';
                     const tour = journee.tourId ? tours.find(t => t.id === journee.tourId) : null;
                     const [h1, m1] = journee.heurePriseService.split(':').map(Number);
                     const [h2, m2] = journee.heureFinService.split(':').map(Number);
@@ -347,31 +300,20 @@ function App() {
                       totalMins -= (rh * 60 + rm) - (ph * 60 + pm);
                     }
                     const heures = totalMins / 60;
-
                     return (
-                      <div key={journee.id} className="journee-card" style={{ borderLeft: `3px solid ${couleur}` }}>
+                      <div key={journee.id} className="journee-card" style={{ borderLeftColor: entreprise?.couleur || '#555' }}>
                         <div className="journee-card-header">
-                          {entreprise?.logo && <img src={entreprise.logo} alt="" style={{ width: '20px', height: '20px', marginRight: '8px', borderRadius: '3px' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
-                          <div className="couleur-entreprise" style={{ backgroundColor: couleur }}></div>
+                          {entreprise?.logo && <img src={entreprise.logo} alt="" className="entreprise-logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
                           <strong>{entreprise?.nom || 'Entreprise'}</strong>
-                          <span style={{ color: '#aaa' }}>
-                            {journee.role}
-                          </span>
+                          <span>{journee.role}</span>
                           {tour && <span> - Tour {tour.numero}</span>}
-                          {journee.lignesDestinations?.length > 0 && (
-                            <span> - {Array.isArray(journee.lignesDestinations)
-                              ? journee.lignesDestinations.join(', ')
-                              : journee.lignesDestinations}</span>
-                          )}
+                          {journee.lignesDestinations?.length > 0 && <span> - {Array.isArray(journee.lignesDestinations) ? journee.lignesDestinations.join(', ') : journee.lignesDestinations}</span>}
                         </div>
                         <div className="journee-card-info">
-                          <div>
-                            <span>⏰ {journee.heurePriseService} - {journee.heureFinService}</span>
-                            {journee.heureDepartPause && <span> | Pause: {journee.heureDepartPause} - {journee.heureReprise}</span>}
-                          </div>
-                          <div style={{ marginTop: '4px' }}><span>Total: {heures.toFixed(2)} h</span></div>
+                          <div>⏰ {journee.heurePriseService} - {journee.heureFinService}{journee.heureDepartPause && ` | Pause: ${journee.heureDepartPause} - ${journee.heureReprise}`}</div>
+                          <div>Total: {heures.toFixed(2)} h</div>
                           {journee.primes?.length > 0 && (
-                            <div style={{ marginTop: '6px' }}>
+                            <div>
                               <strong>Primes:</strong>
                               <ul className="primes-list">
                                 {journee.primes.map((prime: any) => {
@@ -381,36 +323,30 @@ function App() {
                               </ul>
                             </div>
                           )}
-                          {journee.notes && <div style={{ marginTop: '6px', fontSize: '13px', color: '#aaa' }}>📝 {journee.notes}</div>}
+                          {journee.notes && <div>📝 {journee.notes}</div>}
                         </div>
                         <div className="journee-card-actions">
-                          <button className="edit-button" onClick={() => { setJourneeToEdit(journee); setShowJourneeForm(true); }} title="Modifier">✏️</button>
-                          <button className="delete-button" onClick={() => handleDeleteJournee(journee.id)} title="Supprimer">🗑️</button>
+                          <button className="edit-button" onClick={() => { setJourneeToEdit(journee); setShowJourneeForm(true); }}>✏️</button>
+                          <button className="delete-button" onClick={() => handleDeleteJournee(journee.id)}>🗑️</button>
                         </div>
                       </div>
                     );
                   })
                 ) : (
                   <div className="journee-card journee-non-travaillee">
-                    <div className="journee-card-header"><div className="couleur-entreprise" style={{ backgroundColor: '#666' }}></div><strong>Journée non travaillée</strong></div>
-                    <div className="journee-card-info"><p style={{ color: '#aaa', fontStyle: 'italic' }}>Aucune journée enregistrée pour cette date.</p></div>
+                    <div className="journee-card-header"><strong>Journée non travaillée</strong></div>
+                    <div>Aucune journée enregistrée pour cette date.</div>
                   </div>
                 )}
               </div>
-
-              {/* ========== RÉCAPITULATIF MENSUEL ========== */}
               <div className="month-recap">
                 <h3>Récapitulatif du mois de {selectedDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</h3>
-
-                {/* Stats globales */}
-                <div style={{ marginBottom: '15px' }}>
+                <div>
                   <h4>Global</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                  <div>
                     <div className="stat-box">
                       <span>Jours travaillés:</span>
-                      <strong>
-                        {journees.filter(j => new Date(j.date).getMonth() === selectedDate.getMonth()).length}
-                      </strong>
+                      <strong>{journees.filter(j => new Date(j.date).getMonth() === selectedDate.getMonth()).length}</strong>
                     </div>
                     <div className="stat-box">
                       <span>Heures totales:</span>
@@ -436,35 +372,17 @@ function App() {
                     </div>
                   </div>
                 </div>
-
-                {/* Stats par entreprise */}
                 <div>
                   <h4>Par entreprise</h4>
                   {(() => {
                     const entreprisesAvecJournees = entreprises.filter(entreprise =>
-                      journees.some(j =>
-                        j.entrepriseId === entreprise.id &&
-                        new Date(j.date).getMonth() === selectedDate.getMonth()
-                      )
+                      journees.some(j => j.entrepriseId === entreprise.id && new Date(j.date).getMonth() === selectedDate.getMonth())
                     );
-
                     if (entreprisesAvecJournees.length === 0) {
-                      return (
-                        <div className="journee-card journee-non-travaillee" style={{ marginTop: '10px' }}>
-                          <div className="journee-card-header">
-                            <div className="couleur-entreprise" style={{ backgroundColor: '#666' }}></div>
-                            <strong>Aucune journée enregistrée pour ce mois</strong>
-                          </div>
-                        </div>
-                      );
+                      return <div className="journee-card journee-non-travaillee"><div className="journee-card-header"><strong>Aucune journée enregistrée pour ce mois</strong></div></div>;
                     }
-
                     return entreprisesAvecJournees.map(entreprise => {
-                      const journeesEntreprise = journees.filter(
-                        j => j.entrepriseId === entreprise.id &&
-                        new Date(j.date).getMonth() === selectedDate.getMonth()
-                      );
-
+                      const journeesEntreprise = journees.filter(j => j.entrepriseId === entreprise.id && new Date(j.date).getMonth() === selectedDate.getMonth());
                       let totalMinutes = 0;
                       journeesEntreprise.forEach(j => {
                         const [h1, m1] = j.heurePriseService.split(':').map(Number);
@@ -477,23 +395,12 @@ function App() {
                         }
                         totalMinutes += mins;
                       });
-
                       const heures = Math.floor(totalMinutes / 60);
                       const minutes = totalMinutes % 60;
-
                       return (
-                        <div key={entreprise.id} style={{
-                          marginBottom: '10px',
-                          padding: '10px',
-                          backgroundColor: '#2a2a2a',
-                          borderRadius: '4px',
-                          borderLeft: `3px solid ${entreprise.couleur || '#555'}`
-                        }}>
+                        <div key={entreprise.id} style={{ borderLeftColor: entreprise.couleur || '#555' }}>
                           <strong>{entreprise.nom}</strong>
-                          <div>
-                            Jours: {journeesEntreprise.length} |
-                            Heures: {heures}h{minutes > 0 ? ` ${minutes}min` : ''} ({(totalMinutes / 60).toFixed(2)}h)
-                          </div>
+                          <div>Jours: {journeesEntreprise.length} | Heures: {heures}h{minutes > 0 ? ` ${minutes}min` : ''} ({(totalMinutes / 60).toFixed(2)}h)</div>
                         </div>
                       );
                     });
@@ -503,33 +410,20 @@ function App() {
             </div>
           </div>
         );
-
       case 'Semaines':
         return (
           <div className="semaines-container">
-            <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Semaines à venir</h2>
-            <SemaineView
-              dateDebut={getStartOfWeek(new Date())}
-              onDeleteJournee={handleDeleteJournee}
-              title="Semaine en cours"
-            />
-            <SemaineView
-              dateDebut={getStartOfWeek(new Date(new Date().setDate(new Date().getDate() + 7)))}
-              onDeleteJournee={handleDeleteJournee}
-              title="Semaine prochaine"
-            />
+            <h2>Semaines à venir</h2>
+            <SemaineView dateDebut={getStartOfWeek(new Date())} onDeleteJournee={handleDeleteJournee} title="Semaine en cours" />
+            <SemaineView dateDebut={getStartOfWeek(new Date(new Date().setDate(new Date().getDate() + 7)))} onDeleteJournee={handleDeleteJournee} title="Semaine prochaine" />
           </div>
         );
-
       case 'Entreprises':
         return <EntrepriseList entreprises={entreprises} onEntreprisesUpdated={refreshAllData} rdtpmId={rdtpmId} setRdtpmId={setRdtpmId} />;
-
       case 'Saisons':
         return <SaisonsList saisons={saisons} onSaisonsUpdated={refreshAllData} />;
-
       case 'Tours':
         return <ToursList tours={tours} onToursUpdated={refreshAllData} entreprises={entreprises} rdtpmId={rdtpmId} />;
-
       default:
         return null;
     }
@@ -551,9 +445,7 @@ function App() {
           <JourneeForm
             onClose={() => { setShowJourneeForm(false); setJourneeToEdit(null); }}
             onJourneeAjoutee={refreshAllData}
-            date={new Date(selectedDate.getTime() - selectedDate.getTimezoneOffset() * 60000)
-              .toISOString()
-              .split('T')[0]}
+            date={new Date(selectedDate.getTime() - selectedDate.getTimezoneOffset() * 60000).toISOString().split('T')[0]}
             journeeToEdit={journeeToEdit}
             entreprises={entreprises}
             tours={tours}

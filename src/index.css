@@ -1,4 +1,4 @@
-/* ===== RESET ET STYLES GLOBAUX ===== */
+/* ========== RESET TOTAL ========== */
 * {
   margin: 0;
   padding: 0;
@@ -7,49 +7,39 @@
 
 html, body, #root {
   height: 100%;
-  width: 100%;
-  background-color: #1a1a2a;
-  color: white;
+  min-height: 100vh;
+  background-color: #121212 !important;
+  color: #e0e0e0 !important;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* ===== STYLES POUR L'APPLICATION ===== */
+/* ========== LAYOUT PRINCIPAL ========== */
 .app-container {
-  min-height: 100vh;
   max-width: 1400px;
   margin: 0 auto;
+  padding: 20px;
+  min-height: 100vh;
 }
 
 .app-header {
-  background-color: #2a2a2a;
-  padding: 10px 20px;
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  text-align: center;
   margin-bottom: 20px;
 }
 
 .app-header h1 {
   color: white;
-  margin: 0;
   font-size: 1.8rem;
 }
 
-.app-logo {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-}
-
-/* ===== STYLES POUR LES ONGLETS ===== */
 .tabs-container {
-  background-color: #2a2a2a;
-  padding: 0 20px;
   display: flex;
-  gap: 10px;
-  border-bottom: 1px solid #444;
+  justify-content: center;
+  gap: 5px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  background-color: #1a1a1a;
+  border-radius: 8px 8px 0 0;
+  padding: 0 20px;
 }
 
 .tab-button {
@@ -57,176 +47,40 @@ html, body, #root {
   color: #aaa;
   border: none;
   padding: 10px 20px;
-  cursor: pointer;
   border-radius: 5px 5px 0 0;
-  font-size: 16px;
-  font-family: inherit;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.tab-button:hover {
+  background-color: #2a2a2a;
 }
 
 .tab-button.active {
   background-color: #0078d4;
   color: white;
-  font-weight: bold;
 }
 
-.tab-button:hover {
-  background-color: #3a3a5a;
-}
-
-/* ===== STYLES POUR LE CONTENU PRINCIPAL ===== */
 .main-content {
+  background-color: #1a1a1a;
+  border-radius: 0 0 8px 8px;
   padding: 20px;
+  min-height: calc(100vh - 200px);
 }
 
-/* ===== STYLES POUR LE PLANNING ===== */
-.planning-container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.calendar-container {
-  margin-bottom: 30px;
-  max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* ===== STYLES POUR REACT-CALENDAR ===== */
-.react-calendar-custom {
-  background-color: #2a2a2a !important;
-  color: white !important;
-  border: none !important;
-  border-radius: 8px !important;
-  padding: 10px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-  width: 100% !important;
-  font-family: inherit !important;
-}
-
-.react-calendar-custom .react-calendar__tile {
-  background: none !important;
-  color: white !important;
-  border: none !important;
-  padding: 8px !important;
-  text-align: center !important;
-  position: relative !important;
-  min-height: 36px !important;
-}
-
-.react-calendar-custom .react-calendar__tile:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border-radius: 4px !important;
-}
-
-.react-calendar-custom .react-calendar__tile--now {
-  background: none !important;
-  color: white !important;
-  font-weight: bold !important;
-}
-
-.react-calendar-custom .react-calendar__tile--active {
-  background-color: #0078d4 !important;
-  color: white !important;
-  border-radius: 4px !important;
-}
-
-.react-calendar-custom .react-calendar__month-view__weekdays {
-  text-align: center !important;
-  font-weight: bold !important;
-  padding-bottom: 8px !important;
-  color: white !important;
-  border-bottom: 1px solid #444 !important;
-  margin-bottom: 8px !important;
-}
-
-.react-calendar-custom .react-calendar__navigation {
-  margin-bottom: 10px !important;
-}
-
-.react-calendar-custom .react-calendar__navigation button {
-  color: white !important;
-  background: none !important;
-  border: none !important;
-  font-size: 16px !important;
-  min-width: 36px !important;
-}
-
-.react-calendar-custom .react-calendar__navigation__label {
-  color: white !important;
-  font-size: 18px !important;
-  font-weight: bold !important;
-}
-
-/* ===== STYLES POUR LES CARTES DE JOURNÉE ===== */
-.journee-card {
-  background-color: #2a2a2a;
-  border-radius: 0 4px 4px 0;
-  padding: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  margin-bottom: 10px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.journee-card-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.journee-card-info {
-  margin-left: 26px;
-  font-size: 14px;
-  flex: 1;
-}
-
-.journee-card-actions {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-  margin-top: 8px;
-  justify-content: flex-end;
-}
-
-.couleur-entreprise {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  display: inline-block;
-}
-
-/* ===== STYLES POUR LES PRIMES ===== */
-.primes-list {
-  margin: 4px 0 0 20px;
-  padding: 0;
-  color: #ddd;
-}
-
-.primes-list li {
-  margin-bottom: 2px;
-}
-
-/* ===== STYLES POUR LES BOUTONS ===== */
+/* ========== BOUTONS ========== */
 button {
   cursor: pointer;
+  border: none;
+  border-radius: 4px;
   font-family: inherit;
-}
-
-button:focus {
-  outline: none;
 }
 
 .add-journee-button {
   background-color: #0078d4;
   color: white;
-  border: none;
-  border-radius: 5px;
   padding: 8px 16px;
   margin-bottom: 15px;
-  cursor: pointer;
-  font-size: 14px;
 }
 
 .add-journee-button:hover {
@@ -234,525 +88,230 @@ button:focus {
 }
 
 .edit-button, .delete-button {
-  background: none;
-  border: none;
+  background: transparent;
+  color: #aaa;
+  padding: 4px;
+}
+
+.edit-button:hover {
   color: #0078d4;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0;
-  line-height: 1;
 }
 
-.edit-button:hover, .delete-button:hover{
-  text-decoration: underline;
+.delete-button:hover {
+  color: #ff4444;
 }
 
-/* ===== STYLES POUR LES FORMULAIRES ===== */
-input, select, textarea {
-  background-color: #2a2a2a;
-  color: white;
-  border: 1px solid #444 !important; /* ✅ Bordure visible */
-  border-radius: 4px;
-  padding: 8px;
-  font-size: 14px;
-  width: 100%;
-  margin-bottom: 8px;
-}
-
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: #0078d4 !important; /* ✅ Bordure bleue au focus */
-  box-shadow: 0 0 0 1px #0078d4; /* ✅ Lueur bleue */
-}
-
-input[type="checkbox"] {
-  margin-right: 8px !important;
-  width: auto !important; /* ✅ Annule le width: 100% pour les checkboxes */
-}
-
-textarea {
-  min-height: 50px;
-  resize: vertical;
-}
-
-/* Ajoute ceci à ton index.css */
-.journee-non-travaillee {
-  border-left: 3px solid #666 !important;
-  opacity: 0.8;
-}
-
-.journee-non-travaillee .journee-card-header {
-  color: #aaa !important;
-}
-
-.journee-non-travaillee .couleur-entreprise {
-  background-color: #666 !important;
-}
-
-/* ===== STYLES POUR LES PRIMES DANS LES FORMULAIRES ===== */
-/* Conteneur des primes */
-.primes-container {
-  max-height: 200px;
-  overflow-y: auto;
-  border: 1px solid #444;
-  padding: 10px;
-  border-radius: 4px;
-  background-color: #1a1a1a;
-  margin-bottom: 12px;
-}
-
-/* Chaque prime dans la liste */
-.prime-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-  padding: 4px 0;
-  border-bottom: 1px solid #333; /* ✅ Séparation visuelle */
-}
-
-.prime-item:last-child {
-  border-bottom: none; /* ✅ Pas de bordure pour le dernier élément */
-}
-
-.prime-item label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  font-size: 14px;
-  color: white;
-  width: 100%; /* ✅ Prend toute la largeur */
-}
-
-/* Bouton "Ajouter une prime spéciale" */
-.add-prime-button {
-  background-color: #0078d4;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
-  font-size: 14px;
-  margin-top: 8px;
-  cursor: pointer;
-}
-
-.add-prime-button:hover {
-  background-color: #005a9e;
-}
-
-/* Ligne d'une prime spéciale */
-.prime-speciale-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.prime-speciale-line input[type="text"] {
-  flex: 1;
-  margin-right: 4px;
-}
-
-.prime-speciale-line input[type="number"] {
-  width: 80px;
-  margin-right: 4px;
-}
-
-.prime-speciale-line button {
-  background-color: #ff4444;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-/* ===== STYLES POUR L'ONGLET SEMAINES ===== */
-.semaines-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.semaine-view {
-  margin-bottom: 30px;
+/* ========== CALENDRIER ========== */
+.calendar-container {
   background-color: #2a2a2a;
   border-radius: 8px;
   padding: 15px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  margin-bottom: 20px;
 }
 
-.semaine-view h3 {
-  margin-bottom: 15px;
+.react-calendar {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
   color: white;
-  text-align: center;
-  font-size: 1.2rem;
+  background-color: #2a2a2a;
 }
 
-.semaine-jours {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-}
-
-.semaine-jour {
-  background-color: #1a1a1a;
-  border-radius: 4px;
-  padding: 6px;
-  min-height: 120px;
+.react-calendar__navigation {
+  margin-bottom: 10px;
   display: flex;
-  flex-direction: column;
-}
-
-.semaine-jour-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-  font-size: 12px;
-  color: #aaa;
-  padding-bottom: 4px;
-  border-bottom: 1px solid #333;
-}
-
-/* Style pour les cartes de journée dans la vue semaine */
-.semaine-journee-card {
-  margin-bottom: 0;
-  box-shadow: none;
-  background-color: transparent;
-  padding: 6px;
-  font-size: 12px;
-}
-
-/* Style pour les jours non travaillés dans la vue semaine */
-.semaine-jour .journee-non-travaillee {
-  background-color: transparent;
-  border: 1px dashed #444;
-  height: 100%;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  text-align: center;
-  padding: 8px;
 }
 
-.semaine-jour .journee-non-travaillee .journee-card-header {
-  color: #666;
-  flex-direction: column;
-}
-
-/* ===== STYLES POUR L'ONGLET RECAP ===== */
-.recap-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.stat-card {
-  background-color: #2a2a2a;
-  border-radius: 8px;
-  padding: 15px;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.stat-card h3 {
-  color: #aaa;
-  font-size: 14px;
-  margin-bottom: 8px;
-}
-
-.stat-card p {
-  margin: 0;
+.react-calendar__navigation button {
   color: white;
+  font-size: 1.2rem;
+  padding: 5px 10px;
+  background: none;
+  min-width: 40px;
 }
 
-.recap-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  background-color: #2a2a2a;
-  border-radius: 8px;
-  overflow: hidden;
+.react-calendar__navigation button:hover {
+  background-color: #3a3a3a;
 }
 
-.recap-table th {
-  background-color: #1a1a1a;
-  text-align: left;
-  padding: 12px;
-  color: white;
+.react-calendar__month-view__weekdays {
+  text-align: center;
   font-weight: bold;
+  padding: 5px 0;
+  color: #aaa;
 }
 
-.recap-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #333;
-  color: #ddd;
+.react-calendar__month-view__weekdays__weekday {
+  padding: 5px;
 }
 
-.recap-table tr:last-child td {
-  border-bottom: none;
+.react-calendar__tile {
+  background-color: #1a1a1a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  text-align: center;
+  height: 40px;
 }
 
-.recap-table tr:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+.react-calendar__tile:hover {
+  background-color: #2a2a2a;
 }
 
-/* ===== STYLES POUR ENTREPRISE LIST ===== */
-.entreprises-container {
-  max-width: 1200px;
-  margin: 0 auto;
+.react-calendar__tile--active {
+  background-color: #0078d4;
+}
+
+/* ========== FORMULAIRE ========== */
+.journee-form {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.journee-form-container {
+  background-color: #2a2a2a;
   padding: 20px;
-}
-
-.entreprise-card {
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.entreprise-card:hover {
-  transform: translateY(-2px);
-}
-
-/* Pour les modales */
-.modal-backdrop {
-  overflow-y: auto;
-  padding: 20px;
-}
-
-/* Pour les formulaires dans les modales */
-.modal-content {
+  border-radius: 10px;
+  max-width: 800px;
+  width: 90%;
   max-height: 90vh;
   overflow-y: auto;
 }
 
-/* Pour les lignes de primes */
-.prime-row {
-  flex-wrap: wrap;
-}
-
-/* Pour les inputs dans les modales */
-.modal-input {
-  min-width: 120px;
-  flex: 1;
-}
-
-/* Récapitulatif mensuel */
-.month-recap {
-  margin-top: 20px;
-  /*padding: 15px;*/
-  border-radius: 8px;
-}
-
-.month-recap h3 {
-  margin-top: 0;
+.journee-form-container h2 {
   color: white;
-  border-bottom: 1px solid #444;
-  padding-bottom: 10px;
-}
-
-.month-recap h4 {
-  color: #aaa;
-  margin-bottom: 10px;
-  margin-top: 15px;
-}
-
-.stat-box {
-  background-color: #2a2a2a;
-  padding: 10px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-}
-
-/* ========== STYLES POUR LES SEMAINES ========== */
-
-.semaines-container {
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
-  padding: 0 20px;
-}
-
-.semaine-view {
-  background-color: #1a1a1a;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-
-.semaine-view h3 {
-  color: white;
-  margin-top: 0;
   margin-bottom: 15px;
-  font-size: 1.2rem;
-  text-align: center;
-  border-bottom: 1px solid #444;
-  padding-bottom: 10px;
 }
 
-.semaine-jours {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.semaine-jour {
-  background-color: #2a2a2a;
-  border-radius: 6px;
-  padding: 8px;
-  border: 1px solid #444;
-  min-height: 120px;
-}
-
-.semaine-jour-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 0.8rem;
-  color: #aaa;
-}
-
-.journee-card.semaine-journee-card {
-  background-color: transparent;
-  border: none;
-  padding: 0;
-  box-shadow: none;
-}
-
-.journee-card.semaine-journee-card .journee-card-header {
-  padding: 0;
+.journee-form-container label {
+  display: block;
   margin-bottom: 4px;
-}
-
-.journee-card.semaine-journee-card .journee-card-info {
-  font-size: 0.8rem;
-}
-
-.journee-card.semaine-journee-card .journee-card-actions {
-  margin-top: 4px;
-}
-
-.journee-card.semaine-journee-card .journee-card-actions button {
-  padding: 2px 4px;
-  font-size: 0.8rem;
-}
-
-/* Style pour les cartes de récap hebdomadaire */
-.week-recap {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #444;
-}
-
-.week-recap h4 {
   color: #aaa;
-  margin-bottom: 10px;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
-.stat-box {
-  background-color: #2a2a2a;
-  padding: 10px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-}
-
-.stat-box span {
-  color: #aaa;
-  margin-right: 8px;
-}
-
-.stat-box strong {
-  color: white;
-}
-
-/* Style pour les cartes d'entreprise dans le récap hebdo */
-.week-recap > div > div {
-  margin-bottom: 8px;
+.journee-form-container input,
+.journee-form-container select,
+.journee-form-container textarea {
+  width: 100%;
   padding: 8px;
-  background-color: #2a2a2a;
   border-radius: 4px;
+  border: 1px solid #444;
+  background-color: #1a1a1a;
+  color: white;
+  margin-bottom: 12px;
+}
+
+.journee-form-container input[type="date"] {
+  color-scheme: dark;
+}
+
+.journee-form-container input[type="radio"] {
+  width: auto;
+  margin-right: 6px;
+}
+
+.journee-form-container .add-prime-button {
+  background-color: #0078d4;
+  color: white;
+  margin-top: 6px;
+}
+
+/* ========== CARTES DE JOURNÉE ========== */
+.journee-card {
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
   border-left: 3px solid;
 }
 
-.week-recap > div > div strong {
-  color: white;
-  display: block;
-  margin-bottom: 4px;
-}
-
-.week-recap > div > div div {
-  color: #aaa;
-  font-size: 0.9rem;
-}
-
-/* Style pour la carte "Aucune journée" dans le récap hebdo */
-.week-recap .journee-non-travaillee {
-  margin-top: 10px;
-  background-color: #2a2a2a;
-  border-radius: 4px;
-  padding: 8px;
-}
-
-.week-recap .journee-non-travaillee .journee-card-header {
-  padding: 0;
-}
-
-.week-recap .journee-non-travaillee .journee-card-header strong {
-  color: #aaa;
-  font-size: 0.9rem;
-}
-
-/* ========== FONDS PERSONNALISÉS POUR LES SEMAINES ========== */
-/* Semaine en cours */
-.semaine-view:nth-child(1) {
-  border-left: 4px solid #0078d4; /* Bleu pour la semaine en cours */
-}
-
-/* Semaine prochaine */
-.semaine-view:nth-child(2) {
-  border-left: 4px solid #ffa500; /* Orange pour la semaine prochaine */
-}
-
-/* Ou avec des fonds complets différents */
-/*
-.semaine-view:nth-child(1) {
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-}
-
-.semaine-view:nth-child(2) {
-  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
-}
-*/
-
-/* ========== STYLES POUR LES SEMAINES ========== */
-
-.semaines-container {
+.journee-card-header {
   display: flex;
-  flex-direction: column;
-  gap: 30px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.journee-card-header strong {
+  color: white;
+}
+
+.journee-card-header span {
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+.couleur-entreprise {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.journee-card-info {
+  color: #aaa;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.journee-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.journee-non-travaillee {
+  border-left: 3px solid #666 !important;
+}
+
+.journee-non-travaillee .journee-card-header {
+  justify-content: center;
+}
+
+.journee-non-travaillee .journee-card-header strong {
+  color: #aaa;
+}
+
+.primes-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 4px 0 0 0;
+}
+
+.primes-list li {
+  font-size: 0.85rem;
+  color: #aaa;
+  margin-bottom: 2px;
+}
+
+/* ========== SEMAINES ========== */
+.semaines-container {
   padding: 0 20px;
 }
 
-/* Fond commun pour les semaines avec bordure blanche */
 .semaine-view {
   background-color: #1a1a1a;
   border-radius: 8px;
   padding: 15px;
   margin-bottom: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  border-left: 4px solid white; /* Bordure blanche pour les 2 semaines */
+  border-left: 4px solid white;
 }
 
 .semaine-view h3 {
   color: white;
-  margin-top: 0;
   margin-bottom: 15px;
-  font-size: 1.2rem;
   text-align: center;
   border-bottom: 1px solid #444;
   padding-bottom: 10px;
@@ -776,19 +335,17 @@ textarea {
 .semaine-jour-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
   margin-bottom: 8px;
   font-size: 0.8rem;
   color: #aaa;
 }
 
-/* Suppression des carrés colorés dans les cartes de journée */
-.journee-card.semaine-journee-card .couleur-entreprise {
-  display: none !important;
+.semaine-view .couleur-entreprise {
+  display: none;
 }
 
 .journee-card.semaine-journee-card {
-  background-color: transparent;
+  background: transparent;
   border: none;
   padding: 0;
   box-shadow: none;
@@ -797,38 +354,25 @@ textarea {
 .journee-card.semaine-journee-card .journee-card-header {
   padding: 0;
   margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
-.journee-card.semaine-journee-card .journee-card-info {
-  font-size: 0.8rem;
-}
-
-.journee-card.semaine-journee-card .journee-card-actions {
-  margin-top: 4px;
-}
-
-.journee-card.semaine-journee-card .journee-card-actions button {
-  padding: 2px 4px;
-  font-size: 0.8rem;
-}
-
-/* Style pour les cartes de récap hebdomadaire */
-.week-recap {
-  margin-top: 15px;
+/* ========== RÉCAPITULATIFS ========== */
+.month-recap, .week-recap {
+  margin-top: 20px;
   padding-top: 15px;
   border-top: 1px solid #444;
 }
 
-.week-recap h4 {
-  color: #aaa;
-  margin-bottom: 10px;
-  font-size: 1rem;
+.month-recap h3, .week-recap h3 {
+  color: white;
+  margin-bottom: 15px;
 }
 
-/* Séparation des stats en 2 cartes avec bordure blanche */
+.month-recap h4, .week-recap h4 {
+  color: #aaa;
+  margin-bottom: 10px;
+}
+
 .week-recap > div:first-of-type {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -840,9 +384,7 @@ textarea {
   background-color: #2a2a2a;
   padding: 10px;
   border-radius: 4px;
-  border-left: 3px solid white; /* Bordure blanche */
-  display: flex;
-  align-items: center;
+  border-left: 3px solid white;
 }
 
 .stat-box span {
@@ -854,7 +396,6 @@ textarea {
   color: white;
 }
 
-/* Style pour les cartes d'entreprise dans le récap hebdo */
 .week-recap > div:last-child > div {
   margin-bottom: 8px;
   padding: 8px;
@@ -874,7 +415,6 @@ textarea {
   font-size: 0.9rem;
 }
 
-/* Style pour la carte "Aucune journée" dans le récap hebdo */
 .week-recap .journee-non-travaillee {
   margin-top: 10px;
   background-color: #2a2a2a;
@@ -883,11 +423,149 @@ textarea {
   border-left: 3px solid #666;
 }
 
-.week-recap .journee-non-travaillee .journee-card-header {
-  padding: 0;
-}
-
 .week-recap .journee-non-travaillee .journee-card-header strong {
   color: #aaa;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 10px;
+  }
+
+  .semaine-jours {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .week-recap > div:first-of-type {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-box {
+    border-left: none;
+    border-bottom: 2px solid white;
+    padding-bottom: 10px;
+  }
+}
+
+/* ========== FORMULAIRE JOURNEE ========== */
+.journee-form {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.journee-form-container {
+  background-color: #2a2a2a;
+  padding: 25px;
+  border-radius: 10px;
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.journee-form-container h2 {
+  color: white;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: #aaa;
   font-size: 0.9rem;
+}
+
+.form-group input[type="date"],
+.form-group input[type="time"],
+.form-group input[type="text"],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #444;
+  background-color: #1a1a1a;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.form-group input[type="date"] {
+  color-scheme: dark;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.radio-group {
+  display: flex;
+  gap: 15px;
+  margin-top: 5px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: #aaa;
+}
+
+.radio-label input {
+  width: auto;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: #aaa;
+  margin-right: 15px;
+  margin-bottom: 5px;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
+.primes-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.submit-button {
+  background-color: #0078d4;
+  color: white;
+  padding: 8px 16px;
+}
+
+.cancel-button {
+  background-color: #666;
+  color: white;
+  padding: 8px 16px;
 }

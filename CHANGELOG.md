@@ -1,3 +1,6 @@
+## 2026-05-27 - 18:59:36
+- Commit '2026-05-27' - '18:59:36' - modif css
+
 ## 2026-05-27 - 15:30:31
 - Commit '2026-05-27' - '15:30:31' - refonte onglet semaine, modif du readme avec les pb
 
