@@ -1,3 +1,19 @@
+/* ========== SUPPRESSION DES DIV SUPERPOSÉES ========== */
+div[style*="position: absolute"],
+div[style*="position: fixed"],
+div[style*="z-index"],
+div[style*="background-color: rgb"],
+div[style*="opacity"] {
+  display: none !important;
+}
+
+/* Réapplique les bons styles pour les éléments légitimes */
+.journee-form,
+.calendar-container,
+.app-container {
+  display: block !important;
+}
+
 /* ========== RESET PROPRE ========== */
 :root {
   --bg-primary: #121212;
