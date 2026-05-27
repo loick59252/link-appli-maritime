@@ -85,7 +85,7 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
       return;
     }
 
-    const lignesRaw = editingTour.lignesDestinations;
+    const lignesRaw = editingTour.lignesDestinations as string[] | string | undefined;
     const tourData: Omit<Tour, 'id'> = {
       numero: editingTour.numero!,
       saisonId: editingTour.saisonId!,

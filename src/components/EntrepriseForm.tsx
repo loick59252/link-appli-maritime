@@ -1,6 +1,6 @@
 // src/components/EntrepriseForm.tsx
 import { useState, useEffect } from 'react';
-import { ajouterEntreprise, mettreAJourEntreprise, getEntrepriseById } from './../services/entreprises';
+import { ajouterEntreprise, mettreAJourEntreprise } from './../services/entreprises';
 
 type EntrepriseFormProps = {
   onClose: () => void;
@@ -15,14 +15,16 @@ const COULEURS_DISPONIBLES = [
 
 export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit }: EntrepriseFormProps) => {
   const [nom, setNom] = useState<string>(entrepriseToEdit?.nom || '');
-  const [salaireMatelot, setSalaireMatelot] = useState<number>(entrepriseToEdit?.salaireMatelot || 0);
-  const [salaireCapitaine, setSalaireCapitaine] = useState<number>(entrepriseToEdit?.salaireCapitaine || 0);
+  const [salaireMatelot, setSalaireMatelot] = useState<number>(entrepriseToEdit?.salaires?.matelot?.montant || 0);
+  const [salaireCapitaine, setSalaireCapitaine] = useState<number>(entrepriseToEdit?.salaires?.capitaine?.montant || 0);
   const [couleur, setCouleur] = useState<string>(entrepriseToEdit?.couleur || COULEURS_DISPONIBLES[0]);
   const [allPrimes, setAllPrimes] = useState<any[]>([]);
   const [selectedPrimes, setSelectedPrimes] = useState<any[]>(entrepriseToEdit?.primes || []);
   const [newPrimeNom, setNewPrimeNom] = useState<string>('');
   const [newPrimeMontant, setNewPrimeMontant] = useState<number>(0);
-  const [isEditMode, setIsEditMode] = useState<boolean>(!!entrepriseToEdit);
+  const [newPrimeApplicableA, setNewPrimeApplicableA] = useState<'Matelot' | 'Capitaine' | 'Tous'>('Tous');
+  const [newPrimeIsBrut, setNewPrimeIsBrut] = useState(true);
+  const isEditMode = !!entrepriseToEdit;
 
   // Charge les primes de l'entreprise si on est en mode édition
   useEffect(() => {
@@ -37,12 +39,16 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
     const newPrime = {
       id: Date.now().toString(),
       nom: newPrimeNom,
-      montant: newPrimeMontant
+      montant: newPrimeMontant,
+      isBrut: newPrimeIsBrut,
+      applicableA: newPrimeApplicableA
     };
     setAllPrimes([...allPrimes, newPrime]);
     setSelectedPrimes([...selectedPrimes, newPrime]);
     setNewPrimeNom('');
     setNewPrimeMontant(0);
+    setNewPrimeApplicableA('Tous');
+    setNewPrimeIsBrut(true);
   };
 
   const handleRemovePrime = (id: string) => {
@@ -59,10 +65,18 @@ export const EntrepriseForm = ({ onClose, onEntrepriseAjoutee, entrepriseToEdit 
 
     const entrepriseData = {
       nom,
-      salaireMatelot,
-      salaireCapitaine,
       couleur,
-      primes: allPrimes // ✅ Sauvegarde toutes les primes (même non sélectionnées)
+      salaires: {
+        matelot: { montant: salaireMatelot, isBrut: true },
+        capitaine: { montant: salaireCapitaine, isBrut: true }
+      },
+      primes: allPrimes.map(prime => ({
+        id: prime.id,
+        nom: prime.nom,
+        montant: Number(prime.montant) || 0,
+        isBrut: prime.isBrut ?? true,
+        applicableA: prime.applicableA ?? 'Tous'
+      }))
     };
 
     try {

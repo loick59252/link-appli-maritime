@@ -390,7 +390,6 @@ function App() {
             journeeToEdit={journeeToEdit}
             entreprises={entreprises}
             tours={tours}
-            saisons={saisons}
             rdtpmId={rdtpmId}
             setTours={setTours}
           />

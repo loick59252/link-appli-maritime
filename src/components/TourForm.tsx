@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { getSaisons } from './../services/saisons';
 import { ajouterTour, mettreAJourTour } from './../services/tours';
 import { getEntreprises } from './../services/entreprises';
-import { RDTPM_ID } from './../App';
 
 type TourFormProps = {
   onClose: () => void;
@@ -20,10 +19,10 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
   const [heureFinService, setHeureFinService] = useState<string>(tourToEdit?.heureFinService || '');
   const [lignesDestinations, setLignesDestinations] = useState<string>(tourToEdit?.lignesDestinations?.join(', ') || '');
   const [saisons, setSaisons] = useState<any[]>([]);
-  const [entreprises, setEntreprises] = useState<any[]>([]);
+  const [rdtpmId, setRdtpmId] = useState<string>(tourToEdit?.entrepriseId || '');
   const [allPrimes, setAllPrimes] = useState<any[]>([]);
   const [selectedPrimes, setSelectedPrimes] = useState<any[]>(tourToEdit?.primes || []);
-  const [isEditMode, setIsEditMode] = useState<boolean>(!!tourToEdit);
+  const isEditMode = !!tourToEdit;
 
   useEffect(() => {
     const loadData = async () => {
@@ -32,12 +31,14 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
         getEntreprises()
       ]);
       setSaisons(saisonsData);
-      setEntreprises(entreprisesData);
 
       // Charge les primes de RDTPM
-      const rdpm = entreprisesData.find(e => e.id === RDTPM_ID);
-      if (rdpm?.primes) {
-        setAllPrimes(rdpm.primes);
+      const rdtpm = entreprisesData.find(e => e.nom === 'RDTPM') ?? entreprisesData.find(e => e.id === tourToEdit?.entrepriseId);
+      if (rdtpm?.id) {
+        setRdtpmId(rdtpm.id);
+      }
+      if (rdtpm?.primes) {
+        setAllPrimes(rdtpm.primes);
       }
 
       if (saisonsData.length > 0 && !saisonId) {
@@ -53,6 +54,10 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
       alert("Veuillez remplir tous les champs obligatoires.");
       return;
     }
+    if (!rdtpmId) {
+      alert("Impossible de trouver l'entreprise RDTPM.");
+      return;
+    }
 
     const tourData: any = {
       numero,
@@ -61,7 +66,7 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
       heureFinService,
       lignesDestinations: lignesDestinations.split(',').map(l => l.trim()),
       primes: selectedPrimes,
-      entrepriseId: RDTPM_ID // ✅ Force RDTPM
+      entrepriseId: rdtpmId
     };
 
     if (heureDepartPause) tourData.heureDepartPause = heureDepartPause;

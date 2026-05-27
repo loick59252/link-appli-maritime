@@ -60,8 +60,8 @@ const [date, setDate] = useState<string>(
   const [primesSelectionnees, setPrimesSelectionnees] = useState<any[]>(journeeToEdit?.primes || []);
   const [primesSpeciales, setPrimesSpeciales] = useState<any[]>(journeeToEdit?.primesSpeciales || []);
   const [notes, setNotes] = useState<string>(journeeToEdit?.notes || '');
-  const [isEditMode, setIsEditMode] = useState<boolean>(!!journeeToEdit);
   const [filteredTours, setFilteredTours] = useState<any[]>([]);
+  const isEditMode = !!journeeToEdit;
 
   // Charge les saisons au montage
   useEffect(() => {
@@ -494,7 +494,7 @@ const [date, setDate] = useState<string>(
           {/* Primes spéciales */}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes spéciales</label>
-            {primesSpeciales.map((prime, index) => (
+            {primesSpeciales.map((prime) => (
               <div key={prime.id} style={{ display: 'flex', marginBottom: '8px', alignItems: 'center' }}>
                 <input
                   type="text"

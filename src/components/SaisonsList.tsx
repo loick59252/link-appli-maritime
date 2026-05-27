@@ -3,8 +3,7 @@ import { useState } from 'react';
 import {
   ajouterSaison,
   mettreAJourSaison,
-  supprimerSaison,
-  getSaisons
+  supprimerSaison
 } from '../services/saisons';
 
 type Saison = {
