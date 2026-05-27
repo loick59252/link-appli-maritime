@@ -1,69 +1,49 @@
 // src/services/journees.ts
 import { db, collection, addDoc, updateDoc, deleteDoc, getDocs, query, where, doc } from '../firebaseConfig';
+import type { Journee } from '../types';
 
-// ✅ Fonction pour normaliser les dates (supprime le décalage UTC)
-const normalizeDate = (date: string | Date): string => {
-  const d = new Date(date);
-  // Crée une nouvelle date à minuit (heure locale) pour éviter les problèmes de fuseau horaire
-  const normalized = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  return normalized.toISOString().split('T')[0]; // Format YYYY-MM-DD
+/**
+ * Formate une date en "YYYY-MM-DD" en heure locale (évite le décalage UTC).
+ * C'est le vrai fix du bug de dates Firebase mentionné dans le README.
+ */
+const toLocalDateString = (date: string | Date): string => {
+  const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : date;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 };
 
-export const ajouterJournee = async (journee: any): Promise<string> => {
-  try {
-    const normalizedJournee = {
-      ...journee,
-      date: normalizeDate(journee.date) // ✅ Normalise la date
-    };
-    const docRef = await addDoc(collection(db, 'journees'), normalizedJournee);
-    return docRef.id;
-  } catch (error) {
-    console.error("Erreur lors de l'ajout de la journée:", error);
-    throw error;
-  }
+export const ajouterJournee = async (journee: Omit<Journee, 'id'>): Promise<string> => {
+  const docRef = await addDoc(collection(db, 'journees'), {
+    ...journee,
+    date: toLocalDateString(journee.date),
+  });
+  return docRef.id;
 };
 
-export const mettreAJourJournee = async (id: string, journee: any) => {
-  try {
-    const normalizedJournee = {
-      ...journee,
-      date: normalizeDate(journee.date) // ✅ Normalise la date
-    };
-    await updateDoc(doc(db, 'journees', id), normalizedJournee);
-  } catch (error) {
-    console.error("Erreur lors de la mise à jour de la journée:", error);
-    throw error;
-  }
+export const mettreAJourJournee = async (id: string, journee: Partial<Journee>): Promise<void> => {
+  const data = journee.date
+    ? { ...journee, date: toLocalDateString(journee.date) }
+    : journee;
+  await updateDoc(doc(db, 'journees', id), data);
 };
 
-export const supprimerJournee = async (id: string) => {
-  try {
-    await deleteDoc(doc(db, 'journees', id));
-  } catch (error) {
-    console.error("Erreur lors de la suppression de la journée:", error);
-    throw error;
-  }
+export const supprimerJournee = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, 'journees', id));
 };
 
-export const getJourneesParMois = async (year: number, month: number): Promise<any[]> => {
-  try {
-    // ✅ Utilise des dates normalisées pour la requête
-    const startDate = normalizeDate(new Date(year, month - 1, 1));
-    const endDate = normalizeDate(new Date(year, month, 0));
+export const getJourneesParMois = async (year: number, month: number): Promise<Journee[]> => {
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-    const q = query(
-      collection(db, 'journees'),
-      where('date', '>=', startDate),
-      where('date', '<=', endDate)
-    );
+  const q = query(
+    collection(db, 'journees'),
+    where('date', '>=', startDate),
+    where('date', '<=', endDate)
+  );
 
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-  } catch (error) {
-    console.error(`Erreur lors de la récupération des journées:`, error);
-    throw error;
-  }
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Journee));
 };

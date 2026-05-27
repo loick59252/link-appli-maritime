@@ -1,74 +1,27 @@
 // src/services/entreprises.ts
 import { db } from '../firebaseConfig';
-import {
-  collection,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  getDocs,
-  doc
-} from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, getDocs, doc } from 'firebase/firestore';
+import type { Entreprise } from '../types';
 
-export type Entreprise = {
-  id: string;
-  nom: string;
-  couleur: string;
-  logo?: string;
-  salaires: {
-    matelot: { montant: number; isBrut: boolean };
-    capitaine: { montant: number; isBrut: boolean };
-  };
-  primes: {
-    id: string;
-    nom: string;
-    montant: number;
-    isBrut: boolean;
-    applicableA: 'Matelot' | 'Capitaine' | 'Tous';
-  }[];
-};
+export type { Entreprise };
 
 export const ajouterEntreprise = async (entreprise: Omit<Entreprise, 'id'>): Promise<string> => {
-  try {
-    const entrepriseSansId = { ...entreprise };
-    delete entrepriseSansId.id;
-    const docRef = await addDoc(collection(db, 'entreprises'), entrepriseSansId);
-    return docRef.id;
-  } catch (error) {
-    console.error("Erreur lors de l'ajout de l'entreprise:", error);
-    throw error;
-  }
+  const docRef = await addDoc(collection(db, 'entreprises'), entreprise);
+  return docRef.id;
 };
 
-export const mettreAJourEntreprise = async (id: string, entreprise: Partial<Entreprise>) => {
-  try {
-    const entrepriseNettoyee = Object.fromEntries(
-      Object.entries(entreprise).filter(([_, value]) => value !== undefined)
-    );
-    await updateDoc(doc(db, 'entreprises', id), entrepriseNettoyee);
-  } catch (error) {
-    console.error("Erreur lors de la mise à jour de l'entreprise:", error);
-    throw error;
-  }
+export const mettreAJourEntreprise = async (id: string, data: Partial<Entreprise>): Promise<void> => {
+  const cleaned = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
+  await updateDoc(doc(db, 'entreprises', id), cleaned);
 };
 
-export const supprimerEntreprise = async (id: string) => {
-  try {
-    await deleteDoc(doc(db, 'entreprises', id));
-  } catch (error) {
-    console.error("Erreur lors de la suppression de l'entreprise:", error);
-    throw error;
-  }
+export const supprimerEntreprise = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, 'entreprises', id));
 };
 
 export const getEntreprises = async (): Promise<Entreprise[]> => {
-  try {
-    const querySnapshot = await getDocs(collection(db, 'entreprises'));
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Entreprise[];
-  } catch (error) {
-    console.error("Erreur lors de la récupération des entreprises:", error);
-    throw error;
-  }
+  const snapshot = await getDocs(collection(db, 'entreprises'));
+  return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Entreprise));
 };

@@ -1,144 +1,271 @@
-// src/components/RecapTab.tsx
+// src/components/SaisonsList.tsx
 import { useState } from 'react';
+import {
+  ajouterSaison,
+  mettreAJourSaison,
+  supprimerSaison,
+  getSaisons
+} from '../services/saisons';
 
-type RecapTabProps = {
-  journees: any[];
-  entreprises: any[];
-  selectedDate: Date;
-  setSelectedDate: (date: Date) => void;
-  rdtpmId: string;
+type Saison = {
+  id: string;
+  nom: string;
+  dateDebut: string;
+  dateFin: string;
 };
 
-const calculerHeuresJournee = (journee: any): number => {
-  const [h1, m1] = journee.heurePriseService.split(':').map(Number);
-  const [h2, m2] = journee.heureFinService.split(':').map(Number);
-  let totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
-  if (journee.heureDepartPause && journee.heureReprise) {
-    const [ph, pm] = journee.heureDepartPause.split(':').map(Number);
-    const [rh, rm] = journee.heureReprise.split(':').map(Number);
-    totalMins -= (rh * 60 + rm) - (ph * 60 + pm);
-  }
-  return totalMins / 60;
+type SaisonsListProps = {
+  saisons: Saison[];
+  onSaisonsUpdated: () => void;
 };
 
-const calculerSalaireJournee = (journee: any, entreprise: any): number => {
-  const heures = calculerHeuresJournee(journee);
-  const salaireBase = journee.role === 'Matelot'
-    ? entreprise.salaires.matelot.montant * heures
-    : entreprise.salaires.capitaine.montant * heures;
+export const SaisonsList = ({ saisons, onSaisonsUpdated }: SaisonsListProps) => {
+  const [editingSaison, setEditingSaison] = useState<Partial<Saison> & { id?: string } | null>(null);
 
-  let primesMontant = 0;
-  if (journee.primes) {
-    journee.primes.forEach((primeId: string) => {
-      const prime = entreprise.primes?.find((p: any) => p.id === primeId && (p.applicableA === 'Tous' || p.applicableA === journee.role));
-      if (prime) primesMontant += prime.montant;
+  const handleAddSaison = () => {
+    setEditingSaison({
+      nom: '',
+      dateDebut: new Date().toISOString().split('T')[0],
+      dateFin: new Date().toISOString().split('T')[0]
     });
-  }
-
-  if (journee.primesSpeciales) {
-    journee.primesSpeciales.forEach((prime: any) => primesMontant += prime.montant);
-  }
-
-  return salaireBase + primesMontant;
-};
-
-const calculerStatsMois = (journees: any[], entreprises: any[]) => {
-  let joursTravailes = 0;
-  let heuresTotales = 0;
-  let salaireBrutTotal = 0;
-  let salaireNetTotal = 0;
-
-  journees.forEach(journee => {
-    const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
-    if (!entreprise) return;
-
-    joursTravailes++;
-    heuresTotales += calculerHeuresJournee(journee);
-
-    const salaire = calculerSalaireJournee(journee, entreprise);
-    const isBrut = journee.role === 'Matelot' ? entreprise.salaires.matelot.isBrut : entreprise.salaires.capitaine.isBrut;
-
-    if (isBrut) {
-      salaireBrutTotal += salaire;
-      salaireNetTotal += salaire / 1.22;
-    } else {
-      salaireNetTotal += salaire;
-      salaireBrutTotal += salaire * 1.22;
-    }
-  });
-
-  return { joursTravailes, heuresTotales, salaireBrut: salaireBrutTotal, salaireNet: salaireNetTotal };
-};
-
-export const RecapTab = ({ journees, entreprises, selectedDate, setSelectedDate }: RecapTabProps) => {
-  const [selectedMonth, setSelectedMonth] = useState<number>(selectedDate.getMonth());
-  const [selectedYear, setSelectedYear] = useState<number>(selectedDate.getFullYear());
-
-  const filteredJournees = journees.filter(j => {
-    const date = new Date(j.date);
-    return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
-  });
-
-  const stats = calculerStatsMois(filteredJournees, entreprises);
-
-  const handleMonthChange = (month: number, year: number) => {
-    setSelectedMonth(month);
-    setSelectedYear(year);
-    setSelectedDate(new Date(year, month, 1));
   };
 
+  const handleEdit = (saison: Saison) => {
+    setEditingSaison({ ...saison });
+  };
+
+  const handleSave = async () => {
+    if (!editingSaison || !editingSaison.nom || !editingSaison.dateDebut || !editingSaison.dateFin) {
+      alert("Veuillez remplir tous les champs obligatoires.");
+      return;
+    }
+
+    try {
+      if (editingSaison.id) {
+        await mettreAJourSaison(editingSaison.id, editingSaison as Partial<Saison>);
+      } else {
+        await ajouterSaison(editingSaison as Omit<Saison, 'id'>);
+      }
+      onSaisonsUpdated();
+      setEditingSaison(null);
+    } catch (error) {
+      alert(`Erreur: ${error}`);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette saison ?")) {
+      try {
+        await supprimerSaison(id);  // ✅ Utilisation de la fonction
+        onSaisonsUpdated();
+      } catch (error) {
+        alert(`Erreur lors de la suppression: ${error}`);
+      }
+    }
+  };
+
+  if (editingSaison) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000
+      }}>
+        <div style={{
+          backgroundColor: '#2a2a2a',
+          padding: '20px',
+          borderRadius: '10px',
+          width: '90%',
+          maxWidth: '500px',
+          color: 'white'
+        }}>
+          <h2>{editingSaison.id ? 'Modifier' : 'Ajouter'} une saison</h2>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Nom</label>
+            <input
+              type="text"
+              value={editingSaison.nom || ''}
+              onChange={(e) => setEditingSaison({...editingSaison, nom: e.target.value})}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #444',
+                backgroundColor: '#1a1a1a',
+                color: 'white'
+              }}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Date de début</label>
+            <input
+              type="date"
+              value={editingSaison.dateDebut || ''}
+              onChange={(e) => setEditingSaison({...editingSaison, dateDebut: e.target.value})}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #444',
+                backgroundColor: '#1a1a1a',
+                color: 'white'
+              }}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Date de fin</label>
+            <input
+              type="date"
+              value={editingSaison.dateFin || ''}
+              onChange={(e) => setEditingSaison({...editingSaison, dateFin: e.target.value})}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #444',
+                backgroundColor: '#1a1a1a',
+                color: 'white'
+              }}
+              required
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <button
+              onClick={() => setEditingSaison(null)}
+              style={{
+                backgroundColor: '#555',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '8px 16px',
+                cursor: 'pointer'
+              }}
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleSave}
+              style={{
+                backgroundColor: '#0078d4',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '8px 16px',
+                cursor: 'pointer'
+              }}
+            >
+              {editingSaison.id ? 'Enregistrer' : 'Ajouter'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="recap-container">
-      <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Récapitulatif mensuel</h2>
-
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
-        <select value={selectedMonth} onChange={(e) => handleMonthChange(Number(e.target.value), selectedYear)}
-                style={{ padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#2a2a2a', color: 'white' }}>
-          {Array.from({ length: 12 }, (_, i) => <option key={i} value={i}>{new Date(0, i).toLocaleString('fr-FR', { month: 'long' })}</option>)}
-        </select>
-        <select value={selectedYear} onChange={(e) => handleMonthChange(selectedMonth, Number(e.target.value))}
-                style={{ padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#2a2a2a', color: 'white' }}>
-          {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => <option key={year} value={year}>{year}</option>)}
-        </select>
+    <div className="saisons-container">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ margin: 0 }}>Gestion des saisons</h2>
+        <button
+          onClick={handleAddSaison}
+          style={{
+            backgroundColor: '#0078d4',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            padding: '8px 16px',
+            cursor: 'pointer'
+          }}
+        >
+          + Ajouter une saison
+        </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '30px' }}>
-        <div className="stat-card"><h3>Jours travaillés</h3><p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.joursTravailes}</p></div>
-        <div className="stat-card"><h3>Heures totales</h3><p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.heuresTotales.toFixed(2)} h</p></div>
-        <div className="stat-card"><h3>Salaire brut</h3><p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.salaireBrut.toFixed(2)} €</p></div>
-        <div className="stat-card"><h3>Salaire net</h3><p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.salaireNet.toFixed(2)} €</p></div>
-      </div>
-
-      <div style={{ overflowX: 'auto' }}>
-        <table className="recap-table">
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Date</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Entreprise</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Rôle</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Heures</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Salaire</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredJournees.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(journee => {
-              const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
-              if (!entreprise) return null;
-              const heures = calculerHeuresJournee(journee);
-              const salaire = calculerSalaireJournee(journee, entreprise);
-              return (
-                <tr key={journee.id}>
-                  <td style={{ padding: '8px', borderBottom: '1px solid #333' }}>{new Date(journee.date).toLocaleDateString('fr-FR')}</td>
-                  <td style={{ padding: '8px', borderBottom: '1px solid #333' }}>{entreprise.nom}</td>
-                  <td style={{ padding: '8px', borderBottom: '1px solid #333' }}>{journee.role}</td>
-                  <td style={{ padding: '8px', borderBottom: '1px solid #333' }}>{heures.toFixed(2)} h</td>
-                  <td style={{ padding: '8px', borderBottom: '1px solid #333' }}>{salaire.toFixed(2)} €</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {saisons.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {saisons.map((saison) => (
+            <div
+              key={saison.id}
+              className="saison-card"
+              style={{
+                backgroundColor: '#2a2a2a',
+                padding: '15px',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+              onClick={() => handleEdit(saison)}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ margin: 0, color: 'white' }}>{saison.nom}</h3>
+                  <p style={{ margin: '5px 0 0 0', color: '#aaa', fontSize: '14px' }}>
+                    Du {new Date(saison.dateDebut).toLocaleDateString('fr-FR')} au {new Date(saison.dateFin).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleEdit(saison); }}
+                    style={{
+                      backgroundColor: '#0078d4',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '6px 12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(saison.id); }}
+                    style={{
+                      backgroundColor: '#ff4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '6px 12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', marginTop: '40px' }}>
+          <p style={{ color: '#aaa' }}>Aucune saison trouvée.</p>
+          <button
+            onClick={handleAddSaison}
+            style={{
+              backgroundColor: '#0078d4',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '8px 16px',
+              cursor: 'pointer',
+              marginTop: '10px'
+            }}
+          >
+            + Ajouter votre première saison
+          </button>
+        </div>
+      )}
     </div>
   );
 };

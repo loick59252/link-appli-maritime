@@ -1,9 +1,10 @@
 // src/components/JourneeForm.tsx
 import { useState, useEffect } from 'react';
 import { ajouterJournee, mettreAJourJournee } from '../services/journees';
-import { getTours } from '../services/tours';
+import { getToursParEntreprise } from '../services/tours';
+import { getSaisons } from '../services/saisons';
 
-interface JourneeFormProps {
+type JourneeFormProps = {
   onClose: () => void;
   onJourneeAjoutee: () => void;
   date: string;
@@ -12,341 +13,552 @@ interface JourneeFormProps {
   tours: any[];
   rdtpmId: string;
   setTours: (tours: any[]) => void;
-}
+};
 
-export default function JourneeForm({
+// Fonction pour calculer la durée d'un tour
+const calculerDureeHHMM = (tour: any): string => {
+  const [priseH, priseM] = tour.heurePriseService.split(':').map(Number);
+  const [finH, finM] = tour.heureFinService.split(':').map(Number);
+  let totalMinutes = (finH * 60 + finM) - (priseH * 60 + priseM);
+
+  if (tour.heureDepartPause && tour.heureReprise) {
+    const [pauseH, pauseM] = tour.heureDepartPause.split(':').map(Number);
+    const [repriseH, repriseM] = tour.heureReprise.split(':').map(Number);
+    totalMinutes -= (repriseH * 60 + repriseM) - (pauseH * 60 + pauseM);
+  }
+
+  const heures = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${heures}h${minutes > 0 ? ` ${minutes}min` : ''}`;
+};
+
+export const JourneeForm = ({
   onClose,
   onJourneeAjoutee,
-  date,
+  date: initialDate,
   journeeToEdit,
   entreprises,
   tours,
   rdtpmId,
   setTours
-}: JourneeFormProps) {
-  // États pour les champs du formulaire
-  const [entrepriseId, setEntrepriseId] = useState<string>(journeeToEdit?.entrepriseId || '');
+}: JourneeFormProps) => {
+  // ✅ Date modifiable dans le formulaire
+const [date, setDate] = useState<string>(
+  journeeToEdit?.date ||
+  (initialDate ? new Date(initialDate).toISOString().split('T')[0] : '')
+);
+  const [selectedEntrepriseId, setSelectedEntrepriseId] = useState<string>(journeeToEdit?.entrepriseId || rdtpmId);
+  const [selectedTourId, setSelectedTourId] = useState<string>(journeeToEdit?.tourId || '');
   const [role, setRole] = useState<'Matelot' | 'Capitaine'>(journeeToEdit?.role || 'Matelot');
+  const [saisons, setSaisons] = useState<any[]>([]);
+  const [selectedSaisonId, setSelectedSaisonId] = useState<string>(journeeToEdit?.saisonId || '');
   const [heurePriseService, setHeurePriseService] = useState<string>(journeeToEdit?.heurePriseService || '08:00');
-  const [heureFinService, setHeureFinService] = useState<string>(journeeToEdit?.heureFinService || '17:00');
-  const [hasPause, setHasPause] = useState<boolean>(!!journeeToEdit?.heureDepartPause);
-  const [heureDepartPause, setHeureDepartPause] = useState<string>(journeeToEdit?.heureDepartPause || '12:00');
-  const [heureReprise, setHeureReprise] = useState<string>(journeeToEdit?.heureReprise || '13:00');
-  const [lignesDestinations, setLignesDestinations] = useState<string[]>(journeeToEdit?.lignesDestinations || []);
-  const [tourId, setTourId] = useState<string>(journeeToEdit?.tourId || '');
-  const [primes, setPrimes] = useState<string[]>(journeeToEdit?.primes || []);
+  const [heureDepartPause, setHeureDepartPause] = useState<string>(journeeToEdit?.heureDepartPause || '');
+  const [heureReprise, setHeureReprise] = useState<string>(journeeToEdit?.heureReprise || '');
+  const [heureFinService, setHeureFinService] = useState<string>(journeeToEdit?.heureFinService || '16:00');
+  const [lignesDestinations, setLignesDestinations] = useState<string>(journeeToEdit?.lignesDestinations?.join(', ') || '');
+  const [primesSelectionnees, setPrimesSelectionnees] = useState<any[]>(journeeToEdit?.primes || []);
+  const [primesSpeciales, setPrimesSpeciales] = useState<any[]>(journeeToEdit?.primesSpeciales || []);
   const [notes, setNotes] = useState<string>(journeeToEdit?.notes || '');
-  const [saisonId, setSaisonId] = useState<string>(journeeToEdit?.saisonId || '');
-  const [availableTours, setAvailableTours] = useState<any[]>([]);
+  const [isEditMode, setIsEditMode] = useState<boolean>(!!journeeToEdit);
+  const [filteredTours, setFilteredTours] = useState<any[]>([]);
 
-  // Charge les tours disponibles quand l'entreprise ou la saison change
-// Dans JourneeForm.tsx, remplace le useEffect par :
-useEffect(() => {
-  const fetchTours = async () => {
-    if (entrepriseId && saisonId) {
+  // Charge les saisons au montage
+  useEffect(() => {
+    const loadSaisons = async () => {
       try {
-        const allTours = await getTours();
-        const filteredTours = allTours.filter(tour =>
-          tour.entrepriseId === entrepriseId && tour.saisonId === saisonId
-        );
-        setAvailableTours(filteredTours);
+        const saisonsData = await getSaisons();
+        setSaisons(saisonsData);
+        // ✅ Sélection automatique de la saison en fonction de la date
+        if (date) {
+          const dateObj = new Date(date);
+          const saisonTrouvee = saisonsData.find(s =>
+            new Date(s.dateDebut) <= dateObj && new Date(s.dateFin) >= dateObj
+          );
+          if (saisonTrouvee) {
+            setSelectedSaisonId(saisonTrouvee.id);
+          } else if (saisonsData.length > 0 && !journeeToEdit?.saisonId) {
+            setSelectedSaisonId(saisonsData[0].id);
+          }
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des saisons:", error);
+      }
+    };
+    loadSaisons();
+  }, [date]);
+
+  // ✅ Mise à jour de la saison quand la date change
+  useEffect(() => {
+    if (date && saisons.length > 0) {
+      const dateObj = new Date(date);
+      const saisonTrouvee = saisons.find(s =>
+        new Date(s.dateDebut) <= dateObj && new Date(s.dateFin) >= dateObj
+      );
+      if (saisonTrouvee) {
+        setSelectedSaisonId(saisonTrouvee.id);
+      }
+    }
+  }, [date, saisons]);
+
+  // Charge les tours pour l'entreprise sélectionnée (uniquement les actifs)
+  useEffect(() => {
+    const loadTours = async () => {
+      try {
+        if (selectedEntrepriseId === rdtpmId) {
+          const toursData = await getToursParEntreprise(rdtpmId);
+          // ✅ Filtre pour ne garder que les tours actifs
+          const toursActifs = toursData.filter(t => t.estActif !== false);
+          // Filtre par saison si une saison est sélectionnée
+          const filtered = selectedSaisonId
+            ? toursActifs.filter(t => t.saisonId === selectedSaisonId)
+            : toursActifs;
+          setFilteredTours(filtered.sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true })));
+          setTours(filtered);
+        } else {
+          // Pour les autres entreprises, on prend tous les tours actifs
+          setFilteredTours(tours.filter(t => t.entrepriseId === selectedEntrepriseId && t.estActif !== false));
+        }
       } catch (error) {
         console.error("Erreur lors du chargement des tours:", error);
       }
-    } else {
-      setAvailableTours([]);
-    }
-  };
-  fetchTours();
-}, [entrepriseId, saisonId]);
+    };
 
-  // Gestion de la soumission du formulaire
+    loadTours();
+  }, [selectedEntrepriseId, selectedSaisonId, rdtpmId, tours]);
+
+  // Met à jour le tour sélectionné quand les tours changent
+  useEffect(() => {
+    if (filteredTours.length > 0 && selectedTourId && !filteredTours.some(t => t.id === selectedTourId)) {
+      setSelectedTourId('');
+    }
+  }, [filteredTours, selectedTourId]);
+
+  // Met à jour les champs quand un tour est sélectionné
+  useEffect(() => {
+    if (selectedTourId && filteredTours.length > 0) {
+      const tour = filteredTours.find(t => t.id === selectedTourId);
+      if (tour) {
+        setHeurePriseService(tour.heurePriseService);
+        setHeureFinService(tour.heureFinService);
+        // ✅ Gestion sécurisée de lignesDestinations
+        setLignesDestinations(Array.isArray(tour.lignesDestinations)
+          ? tour.lignesDestinations.join(', ')
+          : tour.lignesDestinations || '');
+        if (tour.heureDepartPause) {
+          setHeureDepartPause(tour.heureDepartPause);
+        } else {
+          setHeureDepartPause('');
+        }
+        if (tour.heureReprise) {
+          setHeureReprise(tour.heureReprise);
+        } else {
+          setHeureReprise('');
+        }
+        setPrimesSelectionnees(tour.primes || []);
+      }
+    } else {
+      setPrimesSelectionnees([]);
+    }
+  }, [selectedTourId, filteredTours]);
+
+  // Trie les entreprises pour mettre RDTPM en premier
+  const entreprisesOrdonnees = [
+    ...entreprises.filter(e => e.id === rdtpmId),
+    ...entreprises.filter(e => e.id !== rdtpmId)
+  ];
+
+  // Gère l'entreprise sélectionnée
+  useEffect(() => {
+    if (selectedEntrepriseId !== rdtpmId) {
+      setSelectedTourId(''); // Réinitialise le tour si l'entreprise change (sauf pour RDTPM)
+      setPrimesSelectionnees([]);
+    }
+  }, [selectedEntrepriseId, rdtpmId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedEntrepriseId || !heurePriseService || !heureFinService) {
+      alert("Veuillez remplir tous les champs obligatoires.");
+      return;
+    }
 
-    const journeeData = {
-      date,
-      entrepriseId,
+    const nouvelleJournee: any = {
+      date: date,
+      entrepriseId: selectedEntrepriseId,
       role,
       heurePriseService,
       heureFinService,
-      heureDepartPause: hasPause ? heureDepartPause : null,
-      heureReprise: hasPause ? heureReprise : null,
-      lignesDestinations: lignesDestinations.length > 0 ? lignesDestinations : null,
-      tourId: tourId || null,
-      primes: primes.length > 0 ? primes : null,
-      notes: notes || null,
-      saisonId: saisonId || null
+      primes: [...primesSelectionnees, ...primesSpeciales],
+      notes: notes || "",
     };
 
+    if (selectedEntrepriseId === rdtpmId && selectedTourId) {
+      nouvelleJournee.tourId = selectedTourId;
+    }
+    if (heureDepartPause) nouvelleJournee.heureDepartPause = heureDepartPause;
+    if (heureReprise) nouvelleJournee.heureReprise = heureReprise;
+    if (lignesDestinations) {
+      nouvelleJournee.lignesDestinations = lignesDestinations.split(',').map((l: string) => l.trim());
+    }
+    if (selectedSaisonId) nouvelleJournee.saisonId = selectedSaisonId;
+
     try {
-      if (journeeToEdit) {
-        await mettreAJourJournee(journeeToEdit.id, journeeData);
+      if (isEditMode && journeeToEdit) {
+        await mettreAJourJournee(journeeToEdit.id, nouvelleJournee);
+        alert("Journée modifiée avec succès !");
       } else {
-        await ajouterJournee(journeeData);
+        await ajouterJournee(nouvelleJournee);
+        alert("Journée ajoutée avec succès !");
       }
       onJourneeAjoutee();
       onClose();
     } catch (error) {
-      console.error("Erreur lors de l'enregistrement:", error);
-      alert(`Erreur lors de l'enregistrement: ${error}`);
+      alert(`Erreur: ${error}`);
     }
   };
 
-  // Entreprise sélectionnée
-  const selectedEntreprise = entreprises.find(e => e.id === entrepriseId);
-  const availablePrimes = selectedEntreprise?.primes || [];
-
-  // Gestion des lignes de destinations
-  const handleLignesDestinationsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const values = e.target.value.split(',').map(s => s.trim()).filter(s => s);
-    setLignesDestinations(values);
+  // Gère l'ajout d'une prime spéciale
+  const handleAddPrimeSpeciale = () => {
+    setPrimesSpeciales([...primesSpeciales, { id: Date.now().toString(), nom: '', montant: 0 }]);
   };
 
-  // Gestion des primes
-  const handlePrimeChange = (primeId: string, isChecked: boolean) => {
-    if (isChecked) {
-      setPrimes([...primes, primeId]);
-    } else {
-      setPrimes(primes.filter(p => p !== primeId));
-    }
+  // Gère la suppression d'une prime spéciale
+  const handleRemovePrimeSpeciale = (id: string) => {
+    setPrimesSpeciales(primesSpeciales.filter(prime => prime.id !== id));
   };
 
-  // Gestion de la pause
-  const handlePauseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setHasPause(e.target.checked);
-    if (!e.target.checked) {
-      setHeureDepartPause('12:00');
-      setHeureReprise('13:00');
-    }
+  // Gère le changement de prime spéciale
+  const handleChangePrimeSpeciale = (id: string, field: string, value: any) => {
+    setPrimesSpeciales(primesSpeciales.map(prime =>
+      prime.id === id ? { ...prime, [field]: value } : prime
+    ));
   };
 
-  // Vérifie si RDTPM est sélectionnée
-  const isRDTPM = entrepriseId === rdtpmId;
+  // Récupère les primes de l'entreprise sélectionnée
+  const entrepriseSelectionnee = entreprises.find(e => e.id === selectedEntrepriseId);
+  const primesEntreprise = entrepriseSelectionnee?.primes || [];
 
   return (
-    <div className="journee-form">
-      <div className="journee-form-container">
-        <h2>{journeeToEdit ? 'Modifier une journée' : 'Ajouter une journée'}</h2>
-
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+      overflowY: 'auto',
+      padding: '20px'
+    }}>
+      <div style={{
+        backgroundColor: '#2a2a2a',
+        padding: '20px',
+        borderRadius: '10px',
+        width: '90%',
+        maxWidth: '800px',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        color: 'white',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+      }}>
+        <h2>{isEditMode ? 'Modifier une journée' : 'Ajouter une journée'}</h2>
         <form onSubmit={handleSubmit}>
-          {/* Date */}
-          <div className="form-group">
-            <label htmlFor="date">Date</label>
-            <input
-              id="date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
-          </div>
+          {/* ✅ Date modifiable */}
+<div style={{ marginBottom: '12px' }}>
+  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Date</label>
+<input
+  type="date"
+  value={date}
+  onChange={(e) => setDate(e.target.value)}
+  style={{
+    width: '100%',
+    padding: '8px',
+    borderRadius: '4px',
+    border: '1px solid #444',
+    backgroundColor: '#1a1a1a',
+    color: 'white'
+  }}
+  required
+/>
+</div>
 
           {/* Entreprise */}
-          <div className="form-group">
-            <label htmlFor="entreprise">Entreprise</label>
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Entreprise</label>
             <select
-              id="entreprise"
-              value={entrepriseId}
+              value={selectedEntrepriseId}
               onChange={(e) => {
-                setEntrepriseId(e.target.value);
-                setSaisonId(''); // Réinitialise la saison quand l'entreprise change
-                setTourId('');   // Réinitialise le tour
+                setSelectedEntrepriseId(e.target.value);
+                setSelectedTourId('');
+                setPrimesSelectionnees([]);
+                setPrimesSpeciales([]);
               }}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
               required
             >
-              <option value="">Sélectionnez une entreprise</option>
-              {entreprises.map(entreprise => (
-                <option key={entreprise.id} value={entreprise.id}>
-                  {entreprise.nom}
+              {entreprisesOrdonnees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nom} {e.couleur && `(${e.couleur})`}
                 </option>
               ))}
             </select>
           </div>
 
           {/* Rôle */}
-          <div className="form-group">
-            <label>Rôle</label>
-            <div className="radio-group">
-              <label className="radio-label">
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Rôle</label>
+            <div style={{ display: 'flex', gap: '15px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
                 <input
                   type="radio"
                   name="role"
                   value="Matelot"
                   checked={role === 'Matelot'}
                   onChange={() => setRole('Matelot')}
+                  style={{ marginRight: '6px' }}
                 />
                 Matelot
               </label>
-              <label className="radio-label">
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
                 <input
                   type="radio"
                   name="role"
                   value="Capitaine"
                   checked={role === 'Capitaine'}
                   onChange={() => setRole('Capitaine')}
+                  style={{ marginRight: '6px' }}
                 />
                 Capitaine
               </label>
             </div>
           </div>
 
-          {/* Heures de service */}
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="heurePriseService">Heure de prise de service</label>
-              <input
-                id="heurePriseService"
-                type="time"
-                value={heurePriseService}
-                onChange={(e) => setHeurePriseService(e.target.value)}
+          {/* Saison (uniquement pour RDTPM) */}
+          {selectedEntrepriseId === rdtpmId && (
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Saison</label>
+              <select
+                value={selectedSaisonId}
+                onChange={(e) => setSelectedSaisonId(e.target.value)}
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
                 required
-              />
+              >
+                <option value="">-- Sélectionner une saison --</option>
+                {saisons.map(saison => (
+                  <option key={saison.id} value={saison.id}>
+                    {saison.nom} ({new Date(saison.dateDebut).toLocaleDateString('fr-FR')} - {new Date(saison.dateFin).toLocaleDateString('fr-FR')})
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="form-group">
-              <label htmlFor="heureFinService">Heure de fin de service</label>
-              <input
-                id="heureFinService"
-                type="time"
-                value={heureFinService}
-                onChange={(e) => setHeureFinService(e.target.value)}
-                required
-              />
+          )}
+
+          {/* Tour (uniquement pour RDTPM) */}
+          {selectedEntrepriseId === rdtpmId && (
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Tour de service</label>
+              <select
+                value={selectedTourId}
+                onChange={(e) => setSelectedTourId(e.target.value)}
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+              >
+                <option value="">-- Sélectionner un tour --</option>
+                {filteredTours.map((t) => {
+                  // Gestion sécurisée de lignesDestinations
+                  const lignes = Array.isArray(t.lignesDestinations)
+                    ? t.lignesDestinations.join(', ')
+                    : t.lignesDestinations || 'Aucune ligne';
+                  return (
+                    <option key={t.id} value={t.id}>
+                      Tour {t.numero} - {lignes} - {calculerDureeHHMM(t)}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
+          )}
+
+          {/* Heures */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Heure de prise de service</label>
+            <input
+              type="time"
+              value={heurePriseService}
+              onChange={(e) => setHeurePriseService(e.target.value)}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+              required
+            />
           </div>
 
-          {/* Pause */}
-          <div className="form-group">
-            <label className="checkbox-label">
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Heure de départ en pause</label>
+            <input
+              type="time"
+              value={heureDepartPause}
+              onChange={(e) => setHeureDepartPause(e.target.value)}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Heure de reprise</label>
+            <input
+              type="time"
+              value={heureReprise}
+              onChange={(e) => setHeureReprise(e.target.value)}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Heure de fin de service</label>
+            <input
+              type="time"
+              value={heureFinService}
+              onChange={(e) => setHeureFinService(e.target.value)}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+              required
+            />
+          </div>
+
+          {/* Lignes de destination (uniquement pour RDTPM) */}
+          {selectedEntrepriseId === rdtpmId && (
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Lignes de destination</label>
               <input
-                type="checkbox"
-                checked={hasPause}
-                onChange={handlePauseChange}
+                type="text"
+                value={lignesDestinations}
+                onChange={(e) => setLignesDestinations(e.target.value)}
+                placeholder="Ex: 28M, 8M"
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
               />
-              Avec pause
-            </label>
-            {hasPause && (
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="heureDepartPause">Départ en pause</label>
-                  <input
-                    id="heureDepartPause"
-                    type="time"
-                    value={heureDepartPause}
-                    onChange={(e) => setHeureDepartPause(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="heureReprise">Reprise</label>
-                  <input
-                    id="heureReprise"
-                    type="time"
-                    value={heureReprise}
-                    onChange={(e) => setHeureReprise(e.target.value)}
-                  />
-                </div>
-              </div>
+            </div>
+          )}
+
+          {/* Primes regroupées (entreprise + tour) */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes</label>
+            <div style={{
+              maxHeight: '150px',
+              overflowY: 'auto',
+              border: '1px solid #444',
+              padding: '8px',
+              borderRadius: '4px',
+              backgroundColor: '#1a1a1a'
+            }}>
+              {primesEntreprise.length > 0 ? (
+                primesEntreprise.map((prime) => {
+                  const isFromTour = (filteredTours.find(t => t.id === selectedTourId)?.primes || []).includes(prime.id);
+                  return (
+                    <div key={prime.id} style={{ marginBottom: '6px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
+                        <input
+                          type="checkbox"
+                          checked={primesSelectionnees.some(p => p.id === prime.id || p === prime.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setPrimesSelectionnees([...primesSelectionnees, prime.id]);
+                            } else {
+                              setPrimesSelectionnees(primesSelectionnees.filter(p => p.id !== prime.id && p !== prime.id));
+                            }
+                          }}
+                          style={{ marginRight: '6px' }}
+                        />
+                        {prime.nom} (+{prime.montant} €)
+                        {isFromTour && (
+                          <span style={{ marginLeft: '8px', color: '#0078d4', fontSize: '12px' }}>
+                            (Tour)
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                  );
+                })
+              ) : (
+                <p style={{ color: '#888', fontSize: '14px' }}>
+                  {selectedEntrepriseId ? "Aucune prime définie." : "Sélectionnez une entreprise."}
+                </p>
+              )}
+            </div>
+            {selectedTourId && (filteredTours.find(t => t.id === selectedTourId)?.primes || []).length > 0 && (
+              <p style={{ marginTop: '6px', fontSize: '12px', color: '#888' }}>
+                ⚠️ Les primes du tour sont pré-sélectionnées.
+              </p>
             )}
           </div>
 
-          {/* Section spécifique à RDTPM */}
-          {isRDTPM && (
-            <>
-              <div className="form-group">
-                <label htmlFor="saison">Saison</label>
-                <select
-                  id="saison"
-                  value={saisonId}
-                  onChange={(e) => {
-                    setSaisonId(e.target.value);
-                    setTourId(''); // Réinitialise le tour quand la saison change
-                  }}
-                  required
-                >
-                  <option value="">Sélectionnez une saison</option>
-                  {saisons.map(saison => (
-                    <option key={saison.id} value={saison.id}>
-                      {saison.nom}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {saisonId && (
-                <div className="form-group">
-                  <label htmlFor="tour">Tour</label>
-                  <select
-                    id="tour"
-                    value={tourId}
-                    onChange={(e) => setTourId(e.target.value)}
-                  >
-                    <option value="">Aucun tour</option>
-                    {availableTours.map(tour => (
-                      <option key={tour.id} value={tour.id}>
-                        Tour {tour.numero}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="form-group">
-                <label htmlFor="lignesDestinations">Lignes de destinations</label>
+          {/* Primes spéciales */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Primes spéciales</label>
+            {primesSpeciales.map((prime, index) => (
+              <div key={prime.id} style={{ display: 'flex', marginBottom: '8px', alignItems: 'center' }}>
                 <input
-                  id="lignesDestinations"
                   type="text"
-                  value={lignesDestinations.join(', ')}
-                  onChange={handleLignesDestinationsChange}
-                  placeholder="Ex: 8M, 12B, 3D"
+                  value={prime.nom}
+                  onChange={(e) => handleChangePrimeSpeciale(prime.id, 'nom', e.target.value)}
+                  placeholder="Nom"
+                  style={{ flex: 1, padding: '6px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white', marginRight: '4px' }}
                 />
+                <input
+                  type="number"
+                  value={prime.montant}
+                  onChange={(e) => handleChangePrimeSpeciale(prime.id, 'montant', Number(e.target.value))}
+                  placeholder="€"
+                  style={{ width: '80px', padding: '6px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white', marginRight: '4px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemovePrimeSpeciale(prime.id)}
+                  style={{ backgroundColor: '#ff4444', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '12px' }}
+                >
+                  ×
+                </button>
               </div>
-            </>
-          )}
-
-          {/* Primes */}
-          <div className="form-group">
-            <label>Primes</label>
-            <div className="primes-checkbox-group">
-              {availablePrimes.length > 0 ? (
-                availablePrimes.map(prime => (
-                  <label key={prime.id} className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={primes.includes(prime.id)}
-                      onChange={(e) => handlePrimeChange(prime.id, e.target.checked)}
-                    />
-                    {prime.nom} (+{prime.montant}€)
-                  </label>
-                ))
-              ) : (
-                <p className="no-primes">Aucune prime disponible pour cette entreprise</p>
-              )}
-            </div>
+            ))}
+            <button
+              type="button"
+              onClick={handleAddPrimeSpeciale}
+              style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', fontSize: '14px', marginTop: '6px' }}
+            >
+              + Prime spéciale
+            </button>
           </div>
 
           {/* Notes */}
-          <div className="form-group">
-            <label htmlFor="notes">Notes</label>
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Notes</label>
             <textarea
-              id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              placeholder="Ajoutez des notes si nécessaire"
+              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white', minHeight: '50px' }}
+              placeholder="Ex: Échange de tour avec Jean"
             />
           </div>
 
           {/* Boutons */}
-          <div className="form-actions">
-            <button type="submit" className="submit-button">
-              {journeeToEdit ? 'Modifier' : 'Ajouter'}
-            </button>
-            <button type="button" className="cancel-button" onClick={onClose}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ backgroundColor: '#555', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', fontSize: '14px' }}
+            >
               Annuler
+            </button>
+            <button
+              type="submit"
+              style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', fontSize: '14px' }}
+            >
+              {isEditMode ? 'Modifier' : 'Enregistrer'}
             </button>
           </div>
         </form>
       </div>
     </div>
   );
-}
+};
+
+export default JourneeForm;
