@@ -202,114 +202,222 @@ function App() {
         return <RecapTab journees={journees} entreprises={entreprises} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />;
 
       case 'Planning':
-        return (
-          <div className="planning-container">
-            <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Planning Maritime</h2>
-            <button className="add-journee-button" onClick={() => {
-              setJourneeToEdit(null);
-              setShowJourneeForm(true);
-            }}>Ajouter une journée</button>
+  return (
+    <div className="planning-container">
+      <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Planning Maritime</h2>
+      <button className="add-journee-button" onClick={() => {
+        setJourneeToEdit(null);
+        setShowJourneeForm(true);
+      }}>Ajouter une journée</button>
 
-            <div className="calendar-container">
-              <Calendar
-                onChange={(date) => {
-                  setSelectedDate(date);
-                }}
-                value={selectedDate}
-                locale="fr-FR"
-                tileContent={({ date, view }) => {
-  if (view === 'month') {
-    // ✅ Utilise le même format que dans Firebase (YYYY-MM-DD)
-    const dateStr = date.toISOString().split('T')[0];
-    const journee = journees.find(j => j.date === dateStr);
-    if (journee) {
-      const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
-      return (
-        <div style={{
-          height: '100%',
-          width: '100%',
-          backgroundColor: entreprise?.couleur || '#555',
-          borderRadius: '4px',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          opacity: 0.3,
-          zIndex: 1
-        }}></div>
-      );
-    }
-  }
-}}
-                className="react-calendar-custom"
-              />
-            </div>
+      <div className="calendar-container">
+        <Calendar
+          onChange={(date) => {
+            setSelectedDate(date);
+          }}
+          value={selectedDate}
+          locale="fr-FR"
+          tileContent={({ date, view }) => {
+            if (view === 'month') {
+              const dateStr = date.toISOString().split('T')[0];
+              const journee = journees.find(j => j.date === dateStr);
+              if (journee) {
+                const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
+                return (
+                  <div style={{
+                    height: '100%',
+                    width: '100%',
+                    backgroundColor: entreprise?.couleur || '#555',
+                    borderRadius: '4px',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    opacity: 0.3,
+                    zIndex: 1
+                  }}></div>
+                );
+              }
+            }
+          }}
+          className="react-calendar-custom"
+        />
+      </div>
 
-            <div style={{ marginTop: '20px' }}>
-              <h3>Journée du {selectedDate.toLocaleDateString('fr-FR')}</h3><br />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {journees.filter(j => j.date === selectedDate.toISOString().split('T')[0]).length > 0 ? (
-                  journees.filter(j => j.date === selectedDate.toISOString().split('T')[0]).map((journee) => {
-                    const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
-                    const couleur = entreprise?.couleur || '#555';
-                    const tour = journee.tourId ? tours.find(t => t.id === journee.tourId) : null;
-                    const [h1, m1] = journee.heurePriseService.split(':').map(Number);
-                    const [h2, m2] = journee.heureFinService.split(':').map(Number);
-                    let totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
-                    if (journee.heureDepartPause && journee.heureReprise) {
-                      const [ph, pm] = journee.heureDepartPause.split(':').map(Number);
-                      const [rh, rm] = journee.heureReprise.split(':').map(Number);
-                      totalMins -= (rh * 60 + rm) - (ph * 60 + pm);
-                    }
-                    const heures = totalMins / 60;
+      {/* ========== RÉCAPITULATIF MENSUEL (déplacé sous les cartes) ========== */}
+      <div style={{ marginTop: '20px' }}>
+        <h3>Journée du {selectedDate.toLocaleDateString('fr-FR')}</h3><br />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {journees.filter(j => j.date === selectedDate.toISOString().split('T')[0]).length > 0 ? (
+            journees.filter(j => j.date === selectedDate.toISOString().split('T')[0]).map((journee) => {
+              const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
+              const couleur = entreprise?.couleur || '#555';
+              const tour = journee.tourId ? tours.find(t => t.id === journee.tourId) : null;
+              const [h1, m1] = journee.heurePriseService.split(':').map(Number);
+              const [h2, m2] = journee.heureFinService.split(':').map(Number);
+              let totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
+              if (journee.heureDepartPause && journee.heureReprise) {
+                const [ph, pm] = journee.heureDepartPause.split(':').map(Number);
+                const [rh, rm] = journee.heureReprise.split(':').map(Number);
+                totalMins -= (rh * 60 + rm) - (ph * 60 + pm);
+              }
+              const heures = totalMins / 60;
 
-                    return (
-                      <div key={journee.id} className="journee-card" style={{ borderLeft: `3px solid ${couleur}` }}>
-                        <div className="journee-card-header">
-                          {entreprise?.logo && <img src={entreprise.logo} alt="" style={{ width: '20px', height: '20px', marginRight: '8px', borderRadius: '3px' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
-                          <div className="couleur-entreprise" style={{ backgroundColor: couleur }}></div>
-                          <strong>{entreprise?.nom || 'Entreprise'}</strong>
-                          <span style={{ color: '#aaa' }}>
-                            {journee.role}
-                          </span>
-                          {tour && <span> - Tour {tour.numero}</span>}
-                          {journee.lignesDestinations?.length > 0 && <span> - {Array.isArray(journee.lignesDestinations) ? journee.lignesDestinations.join(', ') : journee.lignesDestinations}</span>}
-                        </div>
-                        <div className="journee-card-info">
-                          <div>
-                            <span>⏰ {journee.heurePriseService} - {journee.heureFinService}</span>
-                            {journee.heureDepartPause && <span> | Pause: {journee.heureDepartPause} - {journee.heureReprise}</span>}
-                          </div>
-                          <div style={{ marginTop: '4px' }}><span>Total: {heures.toFixed(2)} h</span></div>
-                          {journee.primes?.length > 0 && (
-                            <div style={{ marginTop: '6px' }}>
-                              <strong>Primes:</strong>
-                              <ul className="primes-list">
-                                {journee.primes.map((prime: any) => {
-                                  const primeObj = entreprises.find(e => e.id === journee.entrepriseId)?.primes?.find(p => p.id === prime.id || p.id === prime);
-                                  return <li key={prime.id || prime}>{primeObj?.nom || prime} (+{primeObj?.montant || prime.montant}€)</li>;
-                                })}
-                              </ul>
-                            </div>
-                          )}
-                          {journee.notes && <div style={{ marginTop: '6px', fontSize: '13px', color: '#aaa' }}>📝 {journee.notes}</div>}
-                        </div>
-                        <div className="journee-card-actions">
-                          <button className="edit-button" onClick={() => { setJourneeToEdit(journee); setShowJourneeForm(true); }} title="Modifier">✏️</button>
-                          <button className="delete-button" onClick={() => handleDeleteJournee(journee.id)} title="Supprimer">🗑️</button>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="journee-card journee-non-travaillee">
-                    <div className="journee-card-header"><div className="couleur-entreprise" style={{ backgroundColor: '#666' }}></div><strong>Journée non travaillée</strong></div>
-                    <div className="journee-card-info"><p style={{ color: '#aaa', fontStyle: 'italic' }}>Aucune journée enregistrée pour cette date.</p></div>
+              return (
+                <div key={journee.id} className="journee-card" style={{ borderLeft: `3px solid ${couleur}` }}>
+                  {/* Contenu de la carte journée (inchangé) */}
+                  <div className="journee-card-header">
+                    {entreprise?.logo && <img src={entreprise.logo} alt="" style={{ width: '20px', height: '20px', marginRight: '8px', borderRadius: '3px' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
+                    <div className="couleur-entreprise" style={{ backgroundColor: couleur }}></div>
+                    <strong>{entreprise?.nom || 'Entreprise'}</strong>
+                    <span style={{ color: '#aaa' }}>{journee.role}</span>
+                    {tour && <span> - Tour {tour.numero}</span>}
+                    {journee.lignesDestinations?.length > 0 && (
+                      <span> - {Array.isArray(journee.lignesDestinations)
+                        ? journee.lignesDestinations.join(', ')
+                        : journee.lignesDestinations}</span>
+                    )}
                   </div>
-                )}
+                  <div className="journee-card-info">
+                    <div>
+                      <span>⏰ {journee.heurePriseService} - {journee.heureFinService}</span>
+                      {journee.heureDepartPause && <span> | Pause: {journee.heureDepartPause} - {journee.heureReprise}</span>}
+                    </div>
+                    <div style={{ marginTop: '4px' }}><span>Total: {heures.toFixed(2)} h</span></div>
+                    {journee.primes?.length > 0 && (
+                      <div style={{ marginTop: '6px' }}>
+                        <strong>Primes:</strong>
+                        <ul className="primes-list">
+                          {journee.primes.map((prime: any) => {
+                            const primeObj = entreprises.find(e => e.id === journee.entrepriseId)?.primes?.find(p => p.id === prime.id || p.id === prime);
+                            return <li key={prime.id || prime}>{primeObj?.nom || prime} (+{primeObj?.montant || prime.montant}€)</li>;
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                    {journee.notes && <div style={{ marginTop: '6px', fontSize: '13px', color: '#aaa' }}>📝 {journee.notes}</div>}
+                  </div>
+                  <div className="journee-card-actions">
+                    <button className="edit-button" onClick={() => { setJourneeToEdit(journee); setShowJourneeForm(true); }} title="Modifier">✏️</button>
+                    <button className="delete-button" onClick={() => handleDeleteJournee(journee.id)} title="Supprimer">🗑️</button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="journee-card journee-non-travaillee">
+              <div className="journee-card-header">
+                <div className="couleur-entreprise" style={{ backgroundColor: '#666' }}></div>
+                <strong>Journée non travaillée</strong>
+              </div>
+              <div className="journee-card-info">
+                <p style={{ color: '#aaa', fontStyle: 'italic' }}>Aucune journée enregistrée pour cette date.</p>
               </div>
             </div>
+          )}
+        </div>
+
+        {/* ========== RÉCAPITULATIF MENSUEL (maintenant ici) ========== */}
+        {journees.filter(j => new Date(j.date).getMonth() === selectedDate.getMonth()).length > 0 && (
+          <div className="month-recap" style={{
+            marginTop: '0px',
+            padding: '0px',
+            borderRadius: '0px'
+          }}>
+            <br></br>
+            <h3 style={{ marginTop: 0, color: 'white' }}>
+              Récapitulatif du mois de {selectedDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+            </h3>
+
+            {/* Stats globales */}
+            <div style={{ marginBottom: '15px' }}>
+              <h4 style={{ color: '#aaa', marginBottom: '10px' }}>Global</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                <div className="stat-box" style={{ backgroundColor: '#2a2a2a', padding: '10px', borderRadius: '4px' }}>
+                  <span>Jours travaillés:</span>
+                  <strong style={{ marginLeft: '8px' }}>
+                    {journees.filter(j => new Date(j.date).getMonth() === selectedDate.getMonth()).length}
+                  </strong>
+                </div>
+                <div className="stat-box" style={{ backgroundColor: '#2a2a2a', padding: '10px', borderRadius: '4px' }}>
+                  <span>Heures totales:</span>
+                  <div>
+                    <strong style={{ marginLeft: '8px' }}>
+                      {(() => {
+                        let totalMinutes = 0;
+                        journees.filter(j => new Date(j.date).getMonth() === selectedDate.getMonth()).forEach(j => {
+                          const [h1, m1] = j.heurePriseService.split(':').map(Number);
+                          const [h2, m2] = j.heureFinService.split(':').map(Number);
+                          let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+                          if (j.heureDepartPause && j.heureReprise) {
+                            const [ph, pm] = j.heureDepartPause.split(':').map(Number);
+                            const [rh, rm] = j.heureReprise.split(':').map(Number);
+                            mins -= (rh * 60 + rm) - (ph * 60 + pm);
+                          }
+                          totalMinutes += mins;
+                        });
+                        const heures = Math.floor(totalMinutes / 60);
+                        const minutes = totalMinutes % 60;
+                        return `${heures}h${minutes > 0 ? ` ${minutes}min` : ''} (${(totalMinutes / 60).toFixed(2)}h)`;
+                      })()}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats par entreprise */}
+            <div>
+              <h4 style={{ color: '#aaa', marginBottom: '10px' }}>Par entreprise</h4>
+              {entreprises.map(entreprise => {
+                const journeesEntreprise = journees.filter(
+                  j => j.entrepriseId === entreprise.id &&
+                  new Date(j.date).getMonth() === selectedDate.getMonth()
+                );
+
+                if (journeesEntreprise.length === 0) return null;
+
+                let totalMinutes = 0;
+                journeesEntreprise.forEach(j => {
+                  const [h1, m1] = j.heurePriseService.split(':').map(Number);
+                  const [h2, m2] = j.heureFinService.split(':').map(Number);
+                  let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+                  if (j.heureDepartPause && j.heureReprise) {
+                    const [ph, pm] = j.heureDepartPause.split(':').map(Number);
+                    const [rh, rm] = j.heureReprise.split(':').map(Number);
+                    mins -= (rh * 60 + rm) - (ph * 60 + pm);
+                  }
+                  totalMinutes += mins;
+                });
+
+                const heures = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+
+                return (
+                  <div key={entreprise.id} style={{
+                    marginBottom: '10px',
+                    padding: '10px',
+                    backgroundColor: '#2a2a2a',
+                    borderRadius: '4px',
+                    borderLeft: `3px solid ${entreprise.couleur || '#555'}`
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong style={{ color: 'white' }}>{entreprise.nom}</strong>
+                        <div style={{ color: '#aaa', fontSize: '14px' }}>
+                          Jours: {journeesEntreprise.length} |
+                          Heures: {heures}h{minutes > 0 ? ` ${minutes}min` : ''} ({(totalMinutes / 60).toFixed(2)}h)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        );
+        )}
+      </div>
+    </div>
+  );
 
       case 'Semaines':
         return (
