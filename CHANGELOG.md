@@ -1,3 +1,6 @@
+## 2026-05-27 - 13:53:21
+- Commit '2026-05-27' - '13:53:21' - réparation affichage date
+
 ## 2026-05-26 - 20:33:33
 - Commit '2026-05-26' - '20:33:33' - maj onglet tours + début planning
 
