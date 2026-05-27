@@ -7,10 +7,7 @@
   --text-secondary: #aaaaaa;
   --text-tertiary: #666666;
 
-  /* Couleurs des entreprises */
-  --foselev-color: #ffa500;    /* Orange pour FOSELEV */
-  --rdtpm-color: #0078d4;     /* Bleu pour RDTPM */
-  --default-color: #555555;   /* Gris par défaut */
+  --accent-blue: #0078d4;
 }
 
 
@@ -99,14 +96,14 @@ button {
 }
 
 .add-journee-button {
-  background-color: var(--foselev-color) !important;
+  background-color: var(--accent-blue) !important;
   color: var(--text-primary) !important;
   padding: 8px 16px;
   margin-bottom: 15px;
 }
 
 .add-journee-button:hover {
-  background-color: #e09500 !important;
+  background-color: #106ebe !important;
 }
 
 .edit-button, .delete-button {
@@ -116,7 +113,7 @@ button {
 }
 
 .edit-button:hover {
-  color: var(--foselev-color);
+  color: var(--accent-blue);
 }
 
 .delete-button:hover {
@@ -190,30 +187,20 @@ button {
   background-color: var(--accent-blue);
 }
 
-/* Indicateurs de couleur pour les jours travaillés */
-.react-calendar__tile--hasJournee {
-  position: relative;
+.react-calendar__tile.calendar-tile-has-journee {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
-.react-calendar__tile--hasJournee::after {
-  content: '';
+.calendar-color-marker {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 4px;
-  opacity: 0.3;
-  z-index: 1;
-}
-
-/* Couleurs spécifiques pour chaque entreprise */
-.react-calendar__tile--foselev::after {
-  background-color: var(--foselev-color);
-}
-
-.react-calendar__tile--rdtpm::after {
-  background-color: var(--rdtpm-color);
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  height: 5px;
+  border-radius: 999px;
+  opacity: 0.95;
+  z-index: 2;
+  pointer-events: none;
 }
 
 /* ========== CARTES DE JOURNÉE ========== */
@@ -240,15 +227,6 @@ button {
 .journee-card-header span {
   color: var(--text-secondary);
   font-size: 0.9rem;
-}
-
-/* Couleurs des bordures selon l'entreprise */
-.journee-card.foselev {
-  border-left-color: var(--foselev-color);
-}
-
-.journee-card.rdtpm {
-  border-left-color: var(--rdtpm-color);
 }
 
 .couleur-entreprise {
@@ -332,33 +310,6 @@ button {
   overflow: hidden;
 }
 
-/* Couleurs pour les jours travaillés dans les semaines */
-.semaine-jour.has-foselev::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--foselev-color);
-  opacity: 0.3;
-  border-radius: 6px;
-  z-index: 1;
-}
-
-.semaine-jour.has-rdtpm::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--rdtpm-color);
-  opacity: 0.3;
-  border-radius: 6px;
-  z-index: 1;
-}
-
 .semaine-jour-header {
   display: flex;
   justify-content: space-between;
@@ -376,9 +327,10 @@ button {
 
 .journee-card.semaine-journee-card {
   background: transparent;
-  border: none;
+  border: none !important;
+  border-left: none !important;
   padding: 0;
-  box-shadow: none;
+  box-shadow: none !important;
   position: relative;
   z-index: 2;
 }
@@ -428,30 +380,13 @@ button {
   color: var(--text-primary);
 }
 
-/* Couleurs pour les entreprises dans le récap */
-.week-recap > div:last-child > div.foselev {
-  border-left-color: var(--foselev-color);
-}
-
-.week-recap > div:last-child > div.rdtpm {
-  border-left-color: var(--rdtpm-color);
-}
-
-.week-recap > div:last-child > div {
-  margin-bottom: 8px;
-  padding: 8px;
-  background-color: var(--bg-tertiary);
-  border-radius: 4px;
-  border-left: 3px solid;
-}
-
-.week-recap > div:last-child > div strong {
+.week-recap .entreprise-recap strong {
   color: var(--text-primary);
   display: block;
   margin-bottom: 4px;
 }
 
-.week-recap > div:last-child > div div {
+.week-recap .entreprise-recap div {
   color: var(--text-secondary);
   font-size: 0.9rem;
 }
@@ -589,7 +524,7 @@ button {
 }
 
 .submit-button {
-  background-color: var(--foselev-color);
+  background-color: var(--accent-blue);
   color: var(--text-primary);
   padding: 8px 16px;
   min-width: 100px;
@@ -623,92 +558,6 @@ button {
   }
 }
 
-/* ========== COULEURS DU CALENDRIER ========== */
-.react-calendar__tile.foselev-tile {
-  background-color: rgba(255, 165, 0, 0.3) !important; /* Orange transparent pour FOSELEV */
-  position: relative;
-}
-
-.react-calendar__tile.foselev-tile:hover {
-  background-color: rgba(255, 165, 0, 0.5) !important;
-}
-
-.react-calendar__tile.rdtpm-tile {
-  background-color: rgba(0, 120, 212, 0.3) !important; /* Bleu transparent pour RDTPM */
-  position: relative;
-}
-
-.react-calendar__tile.rdtpm-tile:hover {
-  background-color: rgba(0, 120, 212, 0.5) !important;
-}
-
-/* ========== COULEURS DES SEMAINES ========== */
-.semaine-jour.has-foselev {
-  background-color: rgba(255, 165, 0, 0.2) !important;
-}
-
-.semaine-jour.has-rdtpm {
-  background-color: rgba(0, 120, 212, 0.2) !important;
-}
-
-/* ========== COULEURS DES CARTES D'ENTREPRISE ========== */
-.journee-card.foselev {
-  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
-}
-
-.journee-card.rdtpm {
-  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
-}
-
-.entreprise-recap.foselev {
-  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
-}
-
-.entreprise-recap.rdtpm {
-  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
-}
-
-/* ========== COULEURS DU CALENDRIER ========== */
-.react-calendar__tile.calendar-tile-foselev {
-  background-color: rgba(255, 165, 0, 0.3) !important; /* Orange transparent pour FOSELEV */
-}
-
-.react-calendar__tile.calendar-tile-rdtpm {
-  background-color: rgba(0, 120, 212, 0.3) !important; /* Bleu transparent pour RDTPM */
-}
-
-/* ========== COULEURS DES SEMAINES ========== */
-.semaine-jour.has-foselev {
-  background-color: rgba(255, 165, 0, 0.2) !important;
-}
-
-.semaine-jour.has-rdtpm {
-  background-color: rgba(0, 120, 212, 0.2) !important;
-}
-
-/* ========== COULEURS DES CARTES ========== */
-.journee-card.foselev {
-  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
-}
-
-.journee-card.rdtpm {
-  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
-}
-
-.entreprise-recap.foselev {
-  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
-}
-
-.entreprise-recap.rdtpm {
-  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
-}
-
-/* ========== SEMAINES - Jours non travaillés ========== */
-.semaine-jour:not(.has-foselev):not(.has-rdtpm) {
-  border: 1px solid #444 !important; /* Garde la bordure mais sans couleur de fond */
-  background-color: var(--bg-tertiary) !important; /* Fond normal */
-}
-
 /* Retire la bordure grise des cartes "En repos" */
 .journee-card.journee-non-travaillee.semaine-journee-card {
   border: none !important;
@@ -725,14 +574,6 @@ button {
   border-left: 3px solid;
 }
 
-.entreprise-recap.foselev {
-  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
-}
-
-.entreprise-recap.rdtpm {
-  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
-}
-
 /* ========== COULEURS DES CARTES DE JOURNÉE (Planning) ========== */
 .journee-card {
   background-color: var(--bg-tertiary);
@@ -740,55 +581,6 @@ button {
   padding: 12px;
   margin-bottom: 10px;
   border-left: 3px solid;
-}
-
-.journee-card.foselev {
-  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
-}
-
-.journee-card.rdtpm {
-  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
-}
-
-/* ========== COULEURS DU CALENDRIER ========== */
-.react-calendar__tile.calendar-tile-foselev {
-  background-color: rgba(255, 165, 0, 0.3) !important; /* Orange transparent pour FOSELEV */
-}
-
-.react-calendar__tile.calendar-tile-rdtpm {
-  background-color: rgba(0, 120, 212, 0.3) !important; /* Bleu transparent pour RDTPM */
-}
-
-/* ========== COULEURS DES SEMAINES ========== */
-.semaine-jour.has-foselev {
-  background-color: rgba(255, 165, 0, 0.2) !important;
-}
-
-.semaine-jour.has-rdtpm {
-  background-color: rgba(0, 120, 212, 0.2) !important;
-}
-
-/* ========== COULEURS DES CARTES ========== */
-.journee-card.foselev {
-  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
-}
-
-.journee-card.rdtpm {
-  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
-}
-
-.entreprise-recap.foselev {
-  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
-}
-
-.entreprise-recap.rdtpm {
-  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
-}
-
-/* ========== SEMAINES - Jours non travaillés ========== */
-.semaine-jour:not(.has-foselev):not(.has-rdtpm) {
-  border: 1px solid #444 !important;
-  background-color: var(--bg-tertiary) !important;
 }
 
 .journee-card.journee-non-travaillee.semaine-journee-card {

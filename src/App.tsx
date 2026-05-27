@@ -35,6 +35,19 @@ const getStartOfWeek = (date: Date): Date => {
   return d;
 };
 
+const getMonthKey = (date: Date): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+const hexToRgba = (hex: string | undefined, opacity: number): string | undefined => {
+  if (!hex) return undefined;
+  const normalized = hex.replace('#', '');
+  if (!/^[\dA-Fa-f]{6}$/.test(normalized)) return hex;
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
 // ────── Composant SemaineView (extrait de App) ──────
 
 type SemaineViewProps = {
@@ -84,7 +97,14 @@ const SemaineView = ({ dateDebut, title, journees, entreprises, onEdit, onDelete
           const minutes = journee ? calculerMinutesJournee(journee) : 0;
 
           return (
-            <div key={dateStr} className={`semaine-jour${journee ? ` has-journee` : ''}`}>
+            <div
+              key={dateStr}
+              className={`semaine-jour${journee ? ' has-journee' : ''}`}
+              style={journee ? {
+                backgroundColor: hexToRgba(entreprise?.couleur, 0.16),
+                borderColor: entreprise?.couleur ?? '#555',
+              } : undefined}
+            >
               <div className="semaine-jour-header">
                 <strong style={{ textTransform: 'capitalize' }}>{jourLabel}</strong>
               </div>
@@ -155,6 +175,7 @@ const SemaineView = ({ dateDebut, title, journees, entreprises, onEdit, onDelete
 function App() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [journees, setJournees] = useState<Journee[]>([]);
+  const [journeesSemaines, setJourneesSemaines] = useState<Journee[]>([]);
   const [entreprises, setEntreprises] = useState<Entreprise[]>([]);
   const [tours, setTours] = useState<Tour[]>([]);
   const [saisons, setSaisons] = useState<Saison[]>([]);
@@ -187,8 +208,30 @@ function App() {
     setJournees(journeesData);
   }, []);
 
+  const loadJourneesForWeeks = useCallback(async () => {
+    const debutSemaine = getStartOfWeek(new Date());
+    const moisACharger = new Map<string, Date>();
+
+    for (let i = 0; i < 14; i++) {
+      const date = new Date(debutSemaine);
+      date.setDate(date.getDate() + i);
+      moisACharger.set(getMonthKey(date), date);
+    }
+
+    const journeesParMois = await Promise.all(
+      [...moisACharger.values()].map(date =>
+        getJourneesParMois(date.getFullYear(), date.getMonth() + 1)
+      )
+    );
+
+    const uniques = new Map<string, Journee>();
+    journeesParMois.flat().forEach(journee => uniques.set(journee.id, journee));
+    setJourneesSemaines([...uniques.values()]);
+  }, []);
+
   useEffect(() => { refreshAllData(); }, []);
   useEffect(() => { loadJourneesForMonth(selectedDate); }, [selectedDate]);
+  useEffect(() => { loadJourneesForWeeks(); }, [loadJourneesForWeeks]);
 
   // Sync rdtpmId si les entreprises changent
   useEffect(() => {
@@ -204,16 +247,14 @@ function App() {
     [entreprises]
   );
 
-  const getEntrepriseClass = useCallback((id: string) =>
-    entreprises.find(e => e.id === id)?.nom.toLowerCase().replace(/\s+/g, '-') ?? '',
-    [entreprises]
-  );
-
   const handleDeleteJournee = useCallback(async (journeeId: string) => {
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette journée ?')) return;
     await supprimerJournee(journeeId);
-    await loadJourneesForMonth(selectedDate);
-  }, [selectedDate, loadJourneesForMonth]);
+    await Promise.all([
+      loadJourneesForMonth(selectedDate),
+      loadJourneesForWeeks(),
+    ]);
+  }, [selectedDate, loadJourneesForMonth, loadJourneesForWeeks]);
 
   const handleEditJournee = useCallback((journee: Journee) => {
     setJourneeToEdit(journee);
@@ -233,6 +274,12 @@ function App() {
     journees.filter(j => j.date === toLocalDateStr(selectedDate)),
     [journees, selectedDate]
   );
+
+  const getJourneeCalendarInfo = useCallback((date: Date) => {
+    const journee = journees.find(j => j.date === toLocalDateStr(date));
+    const entreprise = journee ? entreprises.find(e => e.id === journee.entrepriseId) : null;
+    return { journee, entreprise };
+  }, [journees, entreprises]);
 
   // ────── Onglets ──────
 
@@ -256,10 +303,21 @@ function App() {
                 locale="fr-FR"
                 tileClassName={({ date, view }) => {
                   if (view !== 'month') return null;
-                  const journee = journees.find(j => j.date === toLocalDateStr(date));
+                  const { journee } = getJourneeCalendarInfo(date);
                   if (!journee) return null;
-                  const e = entreprises.find(en => en.id === journee.entrepriseId);
-                  return e ? `calendar-tile-${e.nom.toLowerCase().replace(/\s+/g, '-')}` : null;
+                  return 'calendar-tile-has-journee';
+                }}
+                tileContent={({ date, view }) => {
+                  if (view !== 'month') return null;
+                  const { entreprise } = getJourneeCalendarInfo(date);
+                  if (!entreprise) return null;
+                  return (
+                    <span
+                      className="calendar-color-marker"
+                      style={{ backgroundColor: entreprise.couleur ?? '#555' }}
+                      aria-hidden="true"
+                    />
+                  );
                 }}
                 className="react-calendar-custom"
               />
@@ -272,7 +330,7 @@ function App() {
               const tour = journee.tourId ? tours.find(t => t.id === journee.tourId) : null;
               const minutes = calculerMinutesJournee(journee);
               return (
-                <div key={journee.id} className={`journee-card ${getEntrepriseClass(journee.entrepriseId)}`} style={{ borderLeftColor: getEntrepriseCouleur(journee.entrepriseId) }}>
+                <div key={journee.id} className="journee-card" style={{ borderLeftColor: getEntrepriseCouleur(journee.entrepriseId) }}>
                   <div className="journee-card-header">
                     {entreprise?.logo && <img src={entreprise.logo} alt="" className="entreprise-logo" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
                     <strong>{entreprise?.nom ?? 'Entreprise'}</strong>
@@ -324,7 +382,7 @@ function App() {
                   const jMois = journeesDuMois.filter(j => j.entrepriseId === entreprise.id);
                   const total = jMois.reduce((acc, j) => acc + calculerMinutesJournee(j), 0);
                   return (
-                    <div key={entreprise.id} className={`entreprise-recap ${getEntrepriseClass(entreprise.id)}`} style={{ borderLeftColor: entreprise.couleur ?? '#555' }}>
+                    <div key={entreprise.id} className="entreprise-recap" style={{ borderLeftColor: entreprise.couleur ?? '#555' }}>
                       <strong>{entreprise.nom}</strong>
                       <div>Jours : {jMois.length} | {formatDureeHHMM(total)} ({(total / 60).toFixed(2)}h)</div>
                     </div>
@@ -341,8 +399,8 @@ function App() {
         return (
           <div className="semaines-container">
             <h2>Semaines</h2>
-            <SemaineView dateDebut={debutSemaine} title="Semaine en cours" journees={journees} entreprises={entreprises} onEdit={handleEditJournee} onDelete={handleDeleteJournee} />
-            <SemaineView dateDebut={debutSemaineSuivante} title="Semaine prochaine" journees={journees} entreprises={entreprises} onEdit={handleEditJournee} onDelete={handleDeleteJournee} />
+            <SemaineView dateDebut={debutSemaine} title="Semaine en cours" journees={journeesSemaines} entreprises={entreprises} onEdit={handleEditJournee} onDelete={handleDeleteJournee} />
+            <SemaineView dateDebut={debutSemaineSuivante} title="Semaine prochaine" journees={journeesSemaines} entreprises={entreprises} onEdit={handleEditJournee} onDelete={handleDeleteJournee} />
           </div>
         );
       }
@@ -385,7 +443,12 @@ function App() {
         {showJourneeForm && (
           <JourneeForm
             onClose={() => { setShowJourneeForm(false); setJourneeToEdit(null); }}
-            onJourneeAjoutee={async () => { await loadJourneesForMonth(selectedDate); }}
+            onJourneeAjoutee={async () => {
+              await Promise.all([
+                loadJourneesForMonth(selectedDate),
+                loadJourneesForWeeks(),
+              ]);
+            }}
             date={toLocalDateStr(selectedDate)}
             journeeToEdit={journeeToEdit}
             entreprises={entreprises}
