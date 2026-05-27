@@ -1,3 +1,6 @@
+## 2026-05-26 - 20:33:33
+- Commit '2026-05-26' - '20:33:33' - maj onglet tours + début planning
+
 ## 2026-05-26 - 12:54:28
 - Commit '2026-05-26' - '12:54:28' - pas mal de bugs, a debug
 

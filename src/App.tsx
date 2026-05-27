@@ -106,10 +106,9 @@ function App() {
   };
 
   // Composant pour afficher une semaine
-  const SemaineView = ({ dateDebut, onDeleteJournee, isCurrentWeek }: {
+  const SemaineView = ({ dateDebut, onDeleteJournee }: {
     dateDebut: Date;
     onDeleteJournee: (id: string) => void;
-    isCurrentWeek: boolean;
   }) => {
     const jours = [];
     for (let i = 0; i < 7; i++) {
@@ -125,7 +124,7 @@ function App() {
 
     return (
       <div className="semaine-view">
-        <h3>{isCurrentWeek ? "Semaine en cours" : "Semaine prochaine"}</h3>
+        <h3>{dateDebut.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</h3>
         <div className="semaine-jours">
           {jours.map((date) => {
             const journee = getJourneeForDate(date);
@@ -161,11 +160,7 @@ function App() {
                       <div className="couleur-entreprise" style={{ backgroundColor: getJourneeCouleur(journee), width: '12px', height: '12px' }}></div>
                       <strong style={{ fontSize: '13px' }}>{entreprises.find(e => e.id === journee.entrepriseId)?.nom || 'Entreprise'}</strong>
                       <span style={{ color: '#aaa', fontSize: '12px' }}>
-                        {journee.role} - {
-                          journee.role === 'Matelot'
-                            ? `${entreprises.find(e => e.id === journee.entrepriseId)?.salaires?.matelot?.montant || 0}€/${entreprises.find(e => e.id === journee.entrepriseId)?.salaires?.matelot?.isBrut ? 'B' : 'N'}`
-                            : `${entreprises.find(e => e.id === journee.entrepriseId)?.salaires?.capitaine?.montant || 0}€/${entreprises.find(e => e.id === journee.entrepriseId)?.salaires?.capitaine?.isBrut ? 'B' : 'N'}`
-                        }
+                        {journee.role}
                       </span>
                     </div>
                     <div className="journee-card-info" style={{ fontSize: '12px' }}>
@@ -173,7 +168,16 @@ function App() {
                       <div style={{ marginTop: '4px' }}><span>Total: {heuresTotales.toFixed(2)} h</span></div>
                     </div>
                     <div className="journee-card-actions">
-                      <button className="edit-button" onClick={() => { setJourneeToEdit(journee); setShowJourneeForm(true); }} title="Modifier" style={{ fontSize: '12px' }}>✏️</button>
+                      <button
+  className="edit-button"
+  onClick={() => {
+    setJourneeToEdit(journee);
+    setShowJourneeForm(true);
+  }}
+  title="Modifier"
+>
+  ✏️
+</button>
                       <button className="delete-button" onClick={() => onDeleteJournee(journee.id)} title="Supprimer" style={{ fontSize: '12px' }}>🗑️</button>
                     </div>
                   </div>
@@ -201,67 +205,50 @@ function App() {
         return (
           <div className="planning-container">
             <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Planning Maritime</h2>
-            <button className="add-journee-button" onClick={() => { setJourneeToEdit(null); setShowJourneeForm(true); }}>Ajouter une journée</button>
+            <button className="add-journee-button" onClick={() => {
+              setJourneeToEdit(null);
+              setShowJourneeForm(true);
+            }}>Ajouter une journée</button>
 
             <div className="calendar-container">
               <Calendar
                 onChange={(date) => {
-                  const year = date.getFullYear();
-                  const month = date.getMonth();
-                  const day = date.getDate();
-                  setSelectedDate(new Date(year, month, day));
+                  setSelectedDate(date);
                 }}
                 value={selectedDate}
                 locale="fr-FR"
                 tileContent={({ date, view }) => {
-                  if (view === 'month') {
-                    const dateStr = date.toISOString().split('T')[0];
-                    const hasJournee = journees.some(j => j.date === dateStr);
-                    if (hasJournee) {
-                      const journee = journees.find(j => j.date === dateStr);
-                      return <div style={{ height: '100%', width: '100%', backgroundColor: getJourneeCouleur(journee), borderRadius: '4px', position: 'absolute', top: 0, left: 0, opacity: 0.3, zIndex: 1 }}></div>;
-                    }
-                  }
-                }}
+  if (view === 'month') {
+    // ✅ Utilise le même format que dans Firebase (YYYY-MM-DD)
+    const dateStr = date.toISOString().split('T')[0];
+    const journee = journees.find(j => j.date === dateStr);
+    if (journee) {
+      const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
+      return (
+        <div style={{
+          height: '100%',
+          width: '100%',
+          backgroundColor: entreprise?.couleur || '#555',
+          borderRadius: '4px',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          opacity: 0.3,
+          zIndex: 1
+        }}></div>
+      );
+    }
+  }
+}}
                 className="react-calendar-custom"
               />
             </div>
 
-            {journees.filter(j => new Date(j.date).getMonth() === selectedDate.getMonth()).length > 0 && (
-              <div className="month-stats">
-                <h3>Statistiques du mois</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
-                  <div className="stat-box">
-                    <span>Jours travaillés : </span>
-                    <strong>{journees.filter(j => new Date(j.date).getMonth() === selectedDate.getMonth()).length}</strong>
-                  </div>
-                  <div className="stat-box">
-                    <span>Heures totales : </span>
-                    <strong>{(() => {
-                      let total = 0;
-                      journees.filter(j => new Date(j.date).getMonth() === selectedDate.getMonth()).forEach(j => {
-                        const [h1, m1] = j.heurePriseService.split(':').map(Number);
-                        const [h2, m2] = j.heureFinService.split(':').map(Number);
-                        let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
-                        if (j.heureDepartPause && j.heureReprise) {
-                          const [ph, pm] = j.heureDepartPause.split(':').map(Number);
-                          const [rh, rm] = j.heureReprise.split(':').map(Number);
-                          mins -= (rh * 60 + rm) - (ph * 60 + pm);
-                        }
-                        total += mins / 60;
-                      });
-                      return total.toFixed(2);
-                    })()} h</strong>
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div style={{ marginTop: '20px' }}>
               <h3>Journée du {selectedDate.toLocaleDateString('fr-FR')}</h3><br />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {journees.filter(j => new Date(j.date).toDateString() === selectedDate.toDateString()).length > 0 ? (
-                  journees.filter(j => new Date(j.date).toDateString() === selectedDate.toDateString()).map((journee) => {
+                {journees.filter(j => j.date === selectedDate.toISOString().split('T')[0]).length > 0 ? (
+                  journees.filter(j => j.date === selectedDate.toISOString().split('T')[0]).map((journee) => {
                     const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
                     const couleur = entreprise?.couleur || '#555';
                     const tour = journee.tourId ? tours.find(t => t.id === journee.tourId) : null;
@@ -282,10 +269,10 @@ function App() {
                           <div className="couleur-entreprise" style={{ backgroundColor: couleur }}></div>
                           <strong>{entreprise?.nom || 'Entreprise'}</strong>
                           <span style={{ color: '#aaa' }}>
-                            {journee.role} - {journee.role === 'Matelot' ? `${entreprise?.salaires?.matelot?.montant || 0}€/${entreprise?.salaires?.matelot?.isBrut ? 'B' : 'N'}` : `${entreprise?.salaires?.capitaine?.montant || 0}€/${entreprise?.salaires?.capitaine?.isBrut ? 'B' : 'N'}`}
+                            {journee.role}
                           </span>
                           {tour && <span> - Tour {tour.numero}</span>}
-                          {journee.lignesDestinations?.length > 0 && <span> - {journee.lignesDestinations.join(', ')}</span>}
+                          {journee.lignesDestinations?.length > 0 && <span> - {Array.isArray(journee.lignesDestinations) ? journee.lignesDestinations.join(', ') : journee.lignesDestinations}</span>}
                         </div>
                         <div className="journee-card-info">
                           <div>
@@ -328,8 +315,8 @@ function App() {
         return (
           <div className="semaines-container">
             <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Semaines à venir</h2>
-            <SemaineView dateDebut={getStartOfWeek(new Date())} onDeleteJournee={handleDeleteJournee} isCurrentWeek={true} />
-            <SemaineView dateDebut={getStartOfWeek(new Date(new Date().setDate(new Date().getDate() + 7)))} onDeleteJournee={handleDeleteJournee} isCurrentWeek={false} />
+            <SemaineView dateDebut={getStartOfWeek(new Date())} onDeleteJournee={handleDeleteJournee} />
+            <SemaineView dateDebut={getStartOfWeek(new Date(new Date().setDate(new Date().getDate() + 7)))} onDeleteJournee={handleDeleteJournee} />
           </div>
         );
 
@@ -342,9 +329,6 @@ function App() {
       case 'Tours':
         return <ToursList tours={tours} onToursUpdated={refreshAllData} entreprises={entreprises} rdtpmId={rdtpmId} />;
 
-      case 'Récap':
-        return <RecapTab journees={journees} entreprises={entreprises} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />;
-
       default:
         return null;
     }
@@ -353,7 +337,6 @@ function App() {
   return (
     <div className="app-container">
       <div className="app-header">
-        <img src="/logo-bouee.png" alt="Logo" className="app-logo" />
         <h1>Dashboard Maritime</h1>
       </div>
       <div className="tabs-container">
@@ -363,16 +346,19 @@ function App() {
       </div>
       <div className="main-content">
         {renderTabContent()}
-{showJourneeForm && (
+        {showJourneeForm && (
   <JourneeForm
     onClose={() => { setShowJourneeForm(false); setJourneeToEdit(null); }}
     onJourneeAjoutee={refreshAllData}
-    date={selectedDate.toISOString().split('T')[0]}
+    date={selectedDate.toLocaleDateString('fr-FR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+      .split('/')
+      .reverse()
+      .join('-')} // ✅ Format YYYY-MM-DD local
     journeeToEdit={journeeToEdit}
     entreprises={entreprises}
     tours={tours}
     rdtpmId={rdtpmId}
-    setTours={setTours} // ✅ Ajoute cette ligne
+    setTours={setTours}
   />
 )}
       </div>

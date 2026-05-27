@@ -15,17 +15,38 @@ type JourneeFormProps = {
   setTours: (tours: any[]) => void;
 };
 
+// Fonction pour calculer la durée d'un tour
+const calculerDureeHHMM = (tour: any): string => {
+  const [priseH, priseM] = tour.heurePriseService.split(':').map(Number);
+  const [finH, finM] = tour.heureFinService.split(':').map(Number);
+  let totalMinutes = (finH * 60 + finM) - (priseH * 60 + priseM);
+
+  if (tour.heureDepartPause && tour.heureReprise) {
+    const [pauseH, pauseM] = tour.heureDepartPause.split(':').map(Number);
+    const [repriseH, repriseM] = tour.heureReprise.split(':').map(Number);
+    totalMinutes -= (repriseH * 60 + repriseM) - (pauseH * 60 + pauseM);
+  }
+
+  const heures = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${heures}h${minutes > 0 ? ` ${minutes}min` : ''}`;
+};
+
 export const JourneeForm = ({
   onClose,
   onJourneeAjoutee,
-  date,
+  date: initialDate,
   journeeToEdit,
   entreprises,
   tours,
   rdtpmId,
   setTours
 }: JourneeFormProps) => {
-  // États pour le formulaire
+  // ✅ Date modifiable dans le formulaire
+const [date, setDate] = useState<string>(
+  journeeToEdit?.date ||
+  (initialDate ? new Date(initialDate).toISOString().split('T')[0] : '')
+);
   const [selectedEntrepriseId, setSelectedEntrepriseId] = useState<string>(journeeToEdit?.entrepriseId || rdtpmId);
   const [selectedTourId, setSelectedTourId] = useState<string>(journeeToEdit?.tourId || '');
   const [role, setRole] = useState<'Matelot' | 'Capitaine'>(journeeToEdit?.role || 'Matelot');
@@ -48,32 +69,55 @@ export const JourneeForm = ({
       try {
         const saisonsData = await getSaisons();
         setSaisons(saisonsData);
-        // Si on est en mode édition et qu'une saison est déjà sélectionnée, on ne change pas
-        if (!selectedSaisonId && saisonsData.length > 0 && !journeeToEdit?.saisonId) {
-          setSelectedSaisonId(saisonsData[0].id);
+        // ✅ Sélection automatique de la saison en fonction de la date
+        if (date) {
+          const dateObj = new Date(date);
+          const saisonTrouvee = saisonsData.find(s =>
+            new Date(s.dateDebut) <= dateObj && new Date(s.dateFin) >= dateObj
+          );
+          if (saisonTrouvee) {
+            setSelectedSaisonId(saisonTrouvee.id);
+          } else if (saisonsData.length > 0 && !journeeToEdit?.saisonId) {
+            setSelectedSaisonId(saisonsData[0].id);
+          }
         }
       } catch (error) {
         console.error("Erreur lors du chargement des saisons:", error);
       }
     };
     loadSaisons();
-  }, []);
+  }, [date]);
 
-  // Charge les tours pour l'entreprise sélectionnée
+  // ✅ Mise à jour de la saison quand la date change
+  useEffect(() => {
+    if (date && saisons.length > 0) {
+      const dateObj = new Date(date);
+      const saisonTrouvee = saisons.find(s =>
+        new Date(s.dateDebut) <= dateObj && new Date(s.dateFin) >= dateObj
+      );
+      if (saisonTrouvee) {
+        setSelectedSaisonId(saisonTrouvee.id);
+      }
+    }
+  }, [date, saisons]);
+
+  // Charge les tours pour l'entreprise sélectionnée (uniquement les actifs)
   useEffect(() => {
     const loadTours = async () => {
       try {
         if (selectedEntrepriseId === rdtpmId) {
           const toursData = await getToursParEntreprise(rdtpmId);
-          // Filtre les tours par saison si une saison est sélectionnée
+          // ✅ Filtre pour ne garder que les tours actifs
+          const toursActifs = toursData.filter(t => t.estActif !== false);
+          // Filtre par saison si une saison est sélectionnée
           const filtered = selectedSaisonId
-            ? toursData.filter(t => t.saisonId === selectedSaisonId)
-            : toursData;
+            ? toursActifs.filter(t => t.saisonId === selectedSaisonId)
+            : toursActifs;
           setFilteredTours(filtered.sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true })));
-          setTours(filtered); // Met à jour les tours dans App.tsx
+          setTours(filtered);
         } else {
-          // Pour les autres entreprises, on prend tous les tours
-          setFilteredTours(tours.filter(t => t.entrepriseId === selectedEntrepriseId));
+          // Pour les autres entreprises, on prend tous les tours actifs
+          setFilteredTours(tours.filter(t => t.entrepriseId === selectedEntrepriseId && t.estActif !== false));
         }
       } catch (error) {
         console.error("Erreur lors du chargement des tours:", error);
@@ -90,34 +134,33 @@ export const JourneeForm = ({
     }
   }, [filteredTours, selectedTourId]);
 
-  // Met à jour les heures de pause/reprise si un tour est sélectionné
+  // Met à jour les champs quand un tour est sélectionné
   useEffect(() => {
-  if (selectedTourId && filteredTours.length > 0) {
-    const tour = filteredTours.find(t => t.id === selectedTourId);
-    if (tour) {
-      setHeurePriseService(tour.heurePriseService);
-      setHeureFinService(tour.heureFinService);
-      // ✅ Correction ici
-      setLignesDestinations(Array.isArray(tour.lignesDestinations)
-        ? tour.lignesDestinations.join(', ')
-        : tour.lignesDestinations || '');
-      if (tour.heureDepartPause) {
-        setHeureDepartPause(tour.heureDepartPause);
-      } else {
-        setHeureDepartPause('');
+    if (selectedTourId && filteredTours.length > 0) {
+      const tour = filteredTours.find(t => t.id === selectedTourId);
+      if (tour) {
+        setHeurePriseService(tour.heurePriseService);
+        setHeureFinService(tour.heureFinService);
+        // ✅ Gestion sécurisée de lignesDestinations
+        setLignesDestinations(Array.isArray(tour.lignesDestinations)
+          ? tour.lignesDestinations.join(', ')
+          : tour.lignesDestinations || '');
+        if (tour.heureDepartPause) {
+          setHeureDepartPause(tour.heureDepartPause);
+        } else {
+          setHeureDepartPause('');
+        }
+        if (tour.heureReprise) {
+          setHeureReprise(tour.heureReprise);
+        } else {
+          setHeureReprise('');
+        }
+        setPrimesSelectionnees(tour.primes || []);
       }
-      if (tour.heureReprise) {
-        setHeureReprise(tour.heureReprise);
-      } else {
-        setHeureReprise('');
-      }
-      setPrimesSelectionnees(tour.primes || []);
+    } else {
+      setPrimesSelectionnees([]);
     }
-  } else {
-    setPrimesSelectionnees([]);
-  }
-}, [selectedTourId, filteredTours]);
-
+  }, [selectedTourId, filteredTours]);
 
   // Trie les entreprises pour mettre RDTPM en premier
   const entreprisesOrdonnees = [
@@ -150,13 +193,14 @@ export const JourneeForm = ({
       notes: notes || "",
     };
 
-    // Ajoute les champs optionnels
     if (selectedEntrepriseId === rdtpmId && selectedTourId) {
       nouvelleJournee.tourId = selectedTourId;
     }
     if (heureDepartPause) nouvelleJournee.heureDepartPause = heureDepartPause;
     if (heureReprise) nouvelleJournee.heureReprise = heureReprise;
-    if (lignesDestinations) nouvelleJournee.lignesDestinations = lignesDestinations.split(',').map(l => l.trim());
+    if (lignesDestinations) {
+      nouvelleJournee.lignesDestinations = lignesDestinations.split(',').map((l: string) => l.trim());
+    }
     if (selectedSaisonId) nouvelleJournee.saisonId = selectedSaisonId;
 
     try {
@@ -223,17 +267,24 @@ export const JourneeForm = ({
       }}>
         <h2>{isEditMode ? 'Modifier une journée' : 'Ajouter une journée'}</h2>
         <form onSubmit={handleSubmit}>
-          {/* Date */}
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => {}}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
-              disabled
-            />
-          </div>
+          {/* ✅ Date modifiable */}
+<div style={{ marginBottom: '12px' }}>
+  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Date</label>
+<input
+  type="date"
+  value={date}
+  onChange={(e) => setDate(e.target.value)}
+  style={{
+    width: '100%',
+    padding: '8px',
+    borderRadius: '4px',
+    border: '1px solid #444',
+    backgroundColor: '#1a1a1a',
+    color: 'white'
+  }}
+  required
+/>
+</div>
 
           {/* Entreprise */}
           <div style={{ marginBottom: '12px' }}>
@@ -311,23 +362,23 @@ export const JourneeForm = ({
             <div style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Tour de service</label>
               <select
-  value={selectedTourId}
-  onChange={(e) => setSelectedTourId(e.target.value)}
-  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
->
-  <option value="">-- Sélectionner un tour --</option>
-  {filteredTours.map((t) => {
-    // ✅ Correction ici
-    const lignes = Array.isArray(t.lignesDestinations)
-      ? t.lignesDestinations.join(', ')
-      : t.lignesDestinations || 'Aucune ligne';
-    return (
-      <option key={t.id} value={t.id}>
-        Tour {t.numero} - {lignes} - {calculerDureeHHMM(t)}
-      </option>
-    );
-  })}
-</select>
+                value={selectedTourId}
+                onChange={(e) => setSelectedTourId(e.target.value)}
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#1a1a1a', color: 'white' }}
+              >
+                <option value="">-- Sélectionner un tour --</option>
+                {filteredTours.map((t) => {
+                  // Gestion sécurisée de lignesDestinations
+                  const lignes = Array.isArray(t.lignesDestinations)
+                    ? t.lignesDestinations.join(', ')
+                    : t.lignesDestinations || 'Aucune ligne';
+                  return (
+                    <option key={t.id} value={t.id}>
+                      Tour {t.numero} - {lignes} - {calculerDureeHHMM(t)}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
           )}
 
@@ -508,23 +559,6 @@ export const JourneeForm = ({
       </div>
     </div>
   );
-
-  // Fonction pour calculer la durée d'un tour
-  function calculerDureeHHMM(tour: any): string {
-    const [priseH, priseM] = tour.heurePriseService.split(':').map(Number);
-    const [finH, finM] = tour.heureFinService.split(':').map(Number);
-    let totalMinutes = (finH * 60 + finM) - (priseH * 60 + priseM);
-
-    if (tour.heureDepartPause && tour.heureReprise) {
-      const [pauseH, pauseM] = tour.heureDepartPause.split(':').map(Number);
-      const [repriseH, repriseM] = tour.heureReprise.split(':').map(Number);
-      totalMinutes -= (repriseH * 60 + repriseM) - (pauseH * 60 + pauseM);
-    }
-
-    const heures = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return `${heures}h${minutes > 0 ? ` ${minutes}min` : ''}`;
-  }
 };
 
 export default JourneeForm;
