@@ -1,48 +1,44 @@
-/* ========== SUPPRESSION DES DIV SUPERPOSÉES ========== */
-div[style*="position: absolute"],
-div[style*="position: fixed"],
-div[style*="z-index"],
-div[style*="background-color: rgb"],
-div[style*="opacity"] {
-  display: none !important;
-}
-
-/* Réapplique les bons styles pour les éléments légitimes */
-.journee-form,
-.calendar-container,
-.app-container {
-  display: block !important;
-}
-
-/* ========== RESET PROPRE ========== */
+/* ========== RESET ET VARIABLES ========== */
 :root {
   --bg-primary: #121212;
   --bg-secondary: #1a1a1a;
   --bg-tertiary: #2a2a2a;
   --text-primary: #ffffff;
   --text-secondary: #aaaaaa;
-  --accent-blue: #0078d4;
-  --accent-orange: #ffa500;
+  --text-tertiary: #666666;
+
+  /* Couleurs des entreprises */
+  --foselev-color: #ffa500;    /* Orange pour FOSELEV */
+  --rdtpm-color: #0078d4;     /* Bleu pour RDTPM */
+  --default-color: #555555;   /* Gris par défaut */
 }
 
+/* Supprime les div superposées problématiques */
+div[style*="position: absolute"],
+div[style*="position: fixed"],
+div[style*="z-index"],
+div[style*="background-color: rgb"],
+div[style*="opacity: 0"],
+div[style*="opacity: 0."] {
+  display: none !important;
+}
+
+/* Reset de base */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-html, body {
+html, body, #root {
   height: 100%;
-  background-color: var(--bg-primary);
-  color: var(--text-secondary);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
+  background-color: var(--bg-primary) !important;
+  color: var(--text-secondary) !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
 }
 
-/* ========== LAYOUT ========== */
-#root {
-  height: 100%;
-}
-
+/* ========== LAYOUT PRINCIPAL ========== */
 .app-container {
   max-width: 1400px;
   margin: 0 auto;
@@ -97,7 +93,7 @@ html, body {
   border-radius: 0 0 8px 8px;
   padding: 20px;
   min-height: calc(100vh - 140px);
-  overflow: visible; /* ✅ CORRIGE LE PROBLÈME DE SCROLL */
+  overflow: visible;
 }
 
 /* ========== BOUTONS ========== */
@@ -112,14 +108,14 @@ button {
 }
 
 .add-journee-button {
-  background-color: var(--accent-blue) !important;
+  background-color: var(--foselev-color) !important;
   color: var(--text-primary) !important;
   padding: 8px 16px;
   margin-bottom: 15px;
 }
 
 .add-journee-button:hover {
-  background-color: #005a9e !important;
+  background-color: #e09500 !important;
 }
 
 .edit-button, .delete-button {
@@ -129,7 +125,7 @@ button {
 }
 
 .edit-button:hover {
-  color: var(--accent-blue);
+  color: var(--foselev-color);
 }
 
 .delete-button:hover {
@@ -144,7 +140,92 @@ button {
   margin-bottom: 20px;
 }
 
-/* ========== CARTES ========== */
+/* Style pour react-calendar avec couleurs */
+.react-calendar {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+  font-family: inherit;
+}
+
+.react-calendar__navigation {
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.react-calendar__navigation button {
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  padding: 5px 10px;
+  background: none;
+  min-width: 40px;
+}
+
+.react-calendar__navigation button:hover {
+  background-color: var(--bg-secondary);
+}
+
+.react-calendar__month-view__weekdays {
+  text-align: center;
+  font-weight: bold;
+  padding: 5px 0;
+  color: var(--text-secondary);
+}
+
+.react-calendar__month-view__weekdays__weekday {
+  padding: 5px;
+}
+
+.react-calendar__tile {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  text-align: center;
+  height: 40px;
+  position: relative; /* Pour les indicateurs de couleur */
+  overflow: hidden;
+}
+
+.react-calendar__tile:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.react-calendar__tile--active {
+  background-color: var(--accent-blue);
+}
+
+/* Indicateurs de couleur pour les jours travaillés */
+.react-calendar__tile--hasJournee {
+  position: relative;
+}
+
+.react-calendar__tile--hasJournee::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 4px;
+  opacity: 0.3;
+  z-index: 1;
+}
+
+/* Couleurs spécifiques pour chaque entreprise */
+.react-calendar__tile--foselev::after {
+  background-color: var(--foselev-color);
+}
+
+.react-calendar__tile--rdtpm::after {
+  background-color: var(--rdtpm-color);
+}
+
+/* ========== CARTES DE JOURNÉE ========== */
 .journee-card {
   background-color: var(--bg-tertiary);
   border-radius: 8px;
@@ -170,6 +251,22 @@ button {
   font-size: 0.9rem;
 }
 
+/* Couleurs des bordures selon l'entreprise */
+.journee-card.foselev {
+  border-left-color: var(--foselev-color);
+}
+
+.journee-card.rdtpm {
+  border-left-color: var(--rdtpm-color);
+}
+
+.couleur-entreprise {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
 .journee-card-info {
   color: var(--text-secondary);
   font-size: 0.9rem;
@@ -180,6 +277,30 @@ button {
   display: flex;
   justify-content: flex-end;
   gap: 4px;
+}
+
+.journee-non-travaillee {
+  border-left: 3px solid #666 !important;
+}
+
+.journee-non-travaillee .journee-card-header {
+  justify-content: center;
+}
+
+.journee-non-travaillee .journee-card-header strong {
+  color: var(--text-secondary);
+}
+
+.primes-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 4px 0 0 0;
+}
+
+.primes-list li {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
 }
 
 /* ========== SEMAINES ========== */
@@ -216,6 +337,144 @@ button {
   padding: 8px;
   border: 1px solid #444;
   min-height: 120px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Couleurs pour les jours travaillés dans les semaines */
+.semaine-jour.has-foselev::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--foselev-color);
+  opacity: 0.3;
+  border-radius: 6px;
+  z-index: 1;
+}
+
+.semaine-jour.has-rdtpm::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--rdtpm-color);
+  opacity: 0.3;
+  border-radius: 6px;
+  z-index: 1;
+}
+
+.semaine-jour-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  position: relative;
+  z-index: 2;
+}
+
+/* Supprime les carrés colorés dans les semaines */
+.semaine-view .couleur-entreprise {
+  display: none;
+}
+
+.journee-card.semaine-journee-card {
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+  position: relative;
+  z-index: 2;
+}
+
+.journee-card.semaine-journee-card .journee-card-header {
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+/* ========== RÉCAPITULATIFS ========== */
+.month-recap, .week-recap {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #444;
+}
+
+.month-recap h3, .week-recap h3 {
+  color: var(--text-primary);
+  margin-bottom: 15px;
+}
+
+.month-recap h4, .week-recap h4 {
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.week-recap > div:first-of-type {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.stat-box {
+  background-color: var(--bg-tertiary);
+  padding: 10px;
+  border-radius: 4px;
+  border-left: 3px solid white;
+}
+
+.stat-box span {
+  color: var(--text-secondary);
+  margin-right: 8px;
+}
+
+.stat-box strong {
+  color: var(--text-primary);
+}
+
+/* Couleurs pour les entreprises dans le récap */
+.week-recap > div:last-child > div.foselev {
+  border-left-color: var(--foselev-color);
+}
+
+.week-recap > div:last-child > div.rdtpm {
+  border-left-color: var(--rdtpm-color);
+}
+
+.week-recap > div:last-child > div {
+  margin-bottom: 8px;
+  padding: 8px;
+  background-color: var(--bg-tertiary);
+  border-radius: 4px;
+  border-left: 3px solid;
+}
+
+.week-recap > div:last-child > div strong {
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.week-recap > div:last-child > div div {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.week-recap .journee-non-travaillee {
+  margin-top: 10px;
+  background-color: var(--bg-tertiary);
+  border-radius: 4px;
+  padding: 8px;
+  border-left: 3px solid #666;
+}
+
+.week-recap .journee-non-travaillee .journee-card-header strong {
+  color: var(--text-secondary);
 }
 
 /* ========== FORMULAIRE ========== */
@@ -242,33 +501,307 @@ button {
   overflow-y: auto;
 }
 
-/* ========== RÉCAPITULATIFS ========== */
-.month-recap, .week-recap {
-  margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid #444;
-}
-
-.stat-box {
-  background-color: var(--bg-tertiary);
-  padding: 10px;
-  border-radius: 4px;
-  border-left: 3px solid white;
-  margin-bottom: 10px;
-}
-
-.stat-box span {
-  color: var(--text-secondary);
-  margin-right: 8px;
-}
-
-.stat-box strong {
+.journee-form-container h2 {
   color: var(--text-primary);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.form-group input[type="date"],
+.form-group input[type="time"],
+.form-group input[type="text"],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #444;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.form-group input[type="date"] {
+  color-scheme: dark;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+}
+
+.form-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.radio-group {
+  display: flex;
+  gap: 15px;
+  margin-top: 5px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.radio-label input {
+  width: auto;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  margin-right: 15px;
+  margin-bottom: 5px;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
+.primes-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.submit-button {
+  background-color: var(--foselev-color);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  min-width: 100px;
+}
+
+.cancel-button {
+  background-color: #666;
+  color: var(--text-primary);
+  padding: 8px 16px;
+  min-width: 100px;
 }
 
 /* ========== RESPONSIVE ========== */
 @media (max-width: 768px) {
+  .app-container {
+    padding: 10px;
+  }
+
   .semaine-jours {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .week-recap > div:first-of-type {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-box {
+    border-left: none;
+    border-bottom: 2px solid white;
+    padding-bottom: 10px;
+  }
+}
+
+/* ========== COULEURS DU CALENDRIER ========== */
+.react-calendar__tile.foselev-tile {
+  background-color: rgba(255, 165, 0, 0.3) !important; /* Orange transparent pour FOSELEV */
+  position: relative;
+}
+
+.react-calendar__tile.foselev-tile:hover {
+  background-color: rgba(255, 165, 0, 0.5) !important;
+}
+
+.react-calendar__tile.rdtpm-tile {
+  background-color: rgba(0, 120, 212, 0.3) !important; /* Bleu transparent pour RDTPM */
+  position: relative;
+}
+
+.react-calendar__tile.rdtpm-tile:hover {
+  background-color: rgba(0, 120, 212, 0.5) !important;
+}
+
+/* ========== COULEURS DES SEMAINES ========== */
+.semaine-jour.has-foselev {
+  background-color: rgba(255, 165, 0, 0.2) !important;
+}
+
+.semaine-jour.has-rdtpm {
+  background-color: rgba(0, 120, 212, 0.2) !important;
+}
+
+/* ========== COULEURS DES CARTES D'ENTREPRISE ========== */
+.journee-card.foselev {
+  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
+}
+
+.journee-card.rdtpm {
+  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
+}
+
+.entreprise-recap.foselev {
+  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
+}
+
+.entreprise-recap.rdtpm {
+  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
+}
+
+/* ========== COULEURS DU CALENDRIER ========== */
+.react-calendar__tile.calendar-tile-foselev {
+  background-color: rgba(255, 165, 0, 0.3) !important; /* Orange transparent pour FOSELEV */
+}
+
+.react-calendar__tile.calendar-tile-rdtpm {
+  background-color: rgba(0, 120, 212, 0.3) !important; /* Bleu transparent pour RDTPM */
+}
+
+/* ========== COULEURS DES SEMAINES ========== */
+.semaine-jour.has-foselev {
+  background-color: rgba(255, 165, 0, 0.2) !important;
+}
+
+.semaine-jour.has-rdtpm {
+  background-color: rgba(0, 120, 212, 0.2) !important;
+}
+
+/* ========== COULEURS DES CARTES ========== */
+.journee-card.foselev {
+  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
+}
+
+.journee-card.rdtpm {
+  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
+}
+
+.entreprise-recap.foselev {
+  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
+}
+
+.entreprise-recap.rdtpm {
+  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
+}
+
+/* ========== SEMAINES - Jours non travaillés ========== */
+.semaine-jour:not(.has-foselev):not(.has-rdtpm) {
+  border: 1px solid #444 !important; /* Garde la bordure mais sans couleur de fond */
+  background-color: var(--bg-tertiary) !important; /* Fond normal */
+}
+
+/* Retire la bordure grise des cartes "En repos" */
+.journee-card.journee-non-travaillee.semaine-journee-card {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* ========== COULEURS DES CARTES D'ENTREPRISE (Récapitulatif) ========== */
+.entreprise-recap {
+  margin-bottom: 8px;
+  padding: 8px;
+  background-color: var(--bg-tertiary);
+  border-radius: 4px;
+  border-left: 3px solid;
+}
+
+.entreprise-recap.foselev {
+  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
+}
+
+.entreprise-recap.rdtpm {
+  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
+}
+
+/* ========== COULEURS DES CARTES DE JOURNÉE (Planning) ========== */
+.journee-card {
+  background-color: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-left: 3px solid;
+}
+
+.journee-card.foselev {
+  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
+}
+
+.journee-card.rdtpm {
+  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
+}
+
+/* ========== COULEURS DU CALENDRIER ========== */
+.react-calendar__tile.calendar-tile-foselev {
+  background-color: rgba(255, 165, 0, 0.3) !important; /* Orange transparent pour FOSELEV */
+}
+
+.react-calendar__tile.calendar-tile-rdtpm {
+  background-color: rgba(0, 120, 212, 0.3) !important; /* Bleu transparent pour RDTPM */
+}
+
+/* ========== COULEURS DES SEMAINES ========== */
+.semaine-jour.has-foselev {
+  background-color: rgba(255, 165, 0, 0.2) !important;
+}
+
+.semaine-jour.has-rdtpm {
+  background-color: rgba(0, 120, 212, 0.2) !important;
+}
+
+/* ========== COULEURS DES CARTES ========== */
+.journee-card.foselev {
+  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
+}
+
+.journee-card.rdtpm {
+  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
+}
+
+.entreprise-recap.foselev {
+  border-left-color: #ffa500 !important; /* Orange pour FOSELEV */
+}
+
+.entreprise-recap.rdtpm {
+  border-left-color: #0078d4 !important; /* Bleu pour RDTPM */
+}
+
+/* ========== SEMAINES - Jours non travaillés ========== */
+.semaine-jour:not(.has-foselev):not(.has-rdtpm) {
+  border: 1px solid #444 !important;
+  background-color: var(--bg-tertiary) !important;
+}
+
+.journee-card.journee-non-travaillee.semaine-journee-card {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }

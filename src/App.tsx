@@ -64,7 +64,7 @@ function App() {
       setJournees(journeesData);
     };
     loadJourneesForMonth();
-  }, [selectedDate.getMonth(), selectedDate.getFullYear()]);
+  }, [selectedDate]);
 
   useEffect(() => {
     const rdtpm = entreprises.find(e => e.nom === "RDTPM");
@@ -74,9 +74,16 @@ function App() {
     }
   }, [entreprises, rdtpmId]);
 
-  const getJourneeCouleur = (journee: any) => {
-    const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
+  // Fonction pour obtenir la couleur d'une entreprise
+  const getJourneeCouleur = (entrepriseId: string) => {
+    const entreprise = entreprises.find(e => e.id === entrepriseId);
     return entreprise?.couleur || '#555';
+  };
+
+  // Fonction pour obtenir la classe CSS d'une entreprise
+  const getEntrepriseClass = (entrepriseId: string) => {
+    const entreprise = entreprises.find(e => e.id === entrepriseId);
+    return entreprise?.nom.toLowerCase().replace(/\s+/g, '-') || '';
   };
 
   const getStartOfWeek = (date: Date): Date => {
@@ -100,6 +107,7 @@ function App() {
     }
   };
 
+  // Composant pour afficher une semaine
   const SemaineView = ({ dateDebut, onDeleteJournee, title = '' }: {
     dateDebut: Date;
     onDeleteJournee: (id: string) => void;
@@ -170,17 +178,24 @@ function App() {
               heuresTotales = totalMinutes / 60;
             }
 
+            const entrepriseClass = journee ? getEntrepriseClass(journee.entrepriseId) : '';
+
             return (
-              <div key={dateStr} className="semaine-jour">
+              <div key={dateStr} className={`semaine-jour ${journee ? `has-${entrepriseClass}` : ''}`}>
                 <div className="semaine-jour-header">
                   <strong>{jourSemaine}</strong>
                   <span>{date.toLocaleDateString('fr-FR')}</span>
                 </div>
                 {journee ? (
-                  <div className="journee-card semaine-journee-card" style={{ borderLeftColor: getJourneeCouleur(journee) }}>
+                  <div className="journee-card semaine-journee-card" style={{ borderLeftColor: getJourneeCouleur(journee.entrepriseId) }}>
                     <div className="journee-card-header">
                       {entreprises.find(e => e.id === journee.entrepriseId)?.logo && (
-                        <img src={entreprises.find(e => e.id === journee.entrepriseId).logo} alt="" className="entreprise-logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <img
+                          src={entreprises.find(e => e.id === journee.entrepriseId).logo}
+                          alt=""
+                          className="entreprise-logo"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
                       )}
                       <strong>{entreprises.find(e => e.id === journee.entrepriseId)?.nom || 'Entreprise'}</strong>
                       <span>{journee.role}</span>
@@ -227,8 +242,9 @@ function App() {
                 if (!entreprise) return null;
                 const heures = Math.floor(stats.minutes / 60);
                 const minutes = stats.minutes % 60;
+                const entrepriseClass = getEntrepriseClass(entrepriseId);
                 return (
-                  <div key={entrepriseId} style={{ borderLeftColor: entreprise.couleur || '#555' }}>
+                  <div key={entrepriseId} className={`entreprise-recap ${entrepriseClass}`} style={{ borderLeftColor: entreprise.couleur || '#555' }}>
                     <strong>{entreprise.nom}</strong>
                     <div>Jours: {stats.jours} | Heures: {heures}h{minutes > 0 ? ` ${minutes}min` : ''} ({(stats.minutes / 60).toFixed(2)}h)</div>
                   </div>
@@ -258,28 +274,21 @@ function App() {
             </button>
             <div className="calendar-container">
               <Calendar
-                onChange={(date) => setSelectedDate(date)}
+                onChange={(date) => setSelectedDate(date as Date)}
                 value={selectedDate}
                 locale="fr-FR"
-                tileContent={({ date, view }) => {
+                tileClassName={({ date, view }) => {
                   if (view === 'month') {
                     const dateStr = date.toISOString().split('T')[0];
                     const journee = journees.find(j => j.date === dateStr);
                     if (journee) {
                       const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
-                      return <div style={{
-                        height: '100%',
-                        width: '100%',
-                        backgroundColor: entreprise?.couleur || '#555',
-                        borderRadius: '4px',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        opacity: 0.3,
-                        zIndex: 1
-                      }}></div>;
+                      if (entreprise) {
+                        return `calendar-tile-${entreprise.nom.toLowerCase().replace(/\s+/g, '-')}`;
+                      }
                     }
                   }
+                  return null;
                 }}
                 className="react-calendar-custom"
               />
@@ -300,8 +309,9 @@ function App() {
                       totalMins -= (rh * 60 + rm) - (ph * 60 + pm);
                     }
                     const heures = totalMins / 60;
+                    const entrepriseClass = getEntrepriseClass(journee.entrepriseId);
                     return (
-                      <div key={journee.id} className="journee-card" style={{ borderLeftColor: entreprise?.couleur || '#555' }}>
+                      <div key={journee.id} className={`journee-card ${entrepriseClass}`} style={{ borderLeftColor: getJourneeCouleur(journee.entrepriseId) }}>
                         <div className="journee-card-header">
                           {entreprise?.logo && <img src={entreprise.logo} alt="" className="entreprise-logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
                           <strong>{entreprise?.nom || 'Entreprise'}</strong>
@@ -382,7 +392,11 @@ function App() {
                       return <div className="journee-card journee-non-travaillee"><div className="journee-card-header"><strong>Aucune journée enregistrée pour ce mois</strong></div></div>;
                     }
                     return entreprisesAvecJournees.map(entreprise => {
-                      const journeesEntreprise = journees.filter(j => j.entrepriseId === entreprise.id && new Date(j.date).getMonth() === selectedDate.getMonth());
+                      // ✅ Définition correcte de journeesEntreprise dans ce contexte
+                      const journeesEntreprise = journees.filter(j =>
+                        j.entrepriseId === entreprise.id &&
+                        new Date(j.date).getMonth() === selectedDate.getMonth()
+                      );
                       let totalMinutes = 0;
                       journeesEntreprise.forEach(j => {
                         const [h1, m1] = j.heurePriseService.split(':').map(Number);
@@ -397,8 +411,9 @@ function App() {
                       });
                       const heures = Math.floor(totalMinutes / 60);
                       const minutes = totalMinutes % 60;
+                      const entrepriseClass = getEntrepriseClass(entreprise.id);
                       return (
-                        <div key={entreprise.id} style={{ borderLeftColor: entreprise.couleur || '#555' }}>
+                        <div key={entreprise.id} className={`entreprise-recap ${entrepriseClass}`} style={{ borderLeftColor: entreprise.couleur || '#555' }}>
                           <strong>{entreprise.nom}</strong>
                           <div>Jours: {journeesEntreprise.length} | Heures: {heures}h{minutes > 0 ? ` ${minutes}min` : ''} ({(totalMinutes / 60).toFixed(2)}h)</div>
                         </div>
