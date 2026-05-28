@@ -18,6 +18,20 @@ type Entreprise = {
     isBrut: boolean;
     applicableA: 'Matelot' | 'Capitaine' | 'Tous';
   }[];
+  heuresSupplementaires?: {
+    id: string;
+    nom: string;
+    seuilHebdomadaire: number;
+    tauxMajoration: number;
+    applicableA: 'Matelot' | 'Capitaine' | 'Tous';
+  }[];
+  modulation?: {
+    id: string;
+    nom: string;
+    debutHebdomadaire: number;
+    finHebdomadaire: number;
+    applicableA: 'Matelot' | 'Capitaine' | 'Tous';
+  }[];
 };
 
 type EntrepriseListProps = {
@@ -35,7 +49,9 @@ const nouvelleEntrepriseVide = (): Omit<Entreprise, 'id'> => ({
     matelot: { montant: 0, isBrut: true },
     capitaine: { montant: 0, isBrut: true }
   },
-  primes: []
+  primes: [],
+  heuresSupplementaires: [],
+  modulation: []
 });
 
 export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, setRdtpmId }: EntrepriseListProps) => {
@@ -45,6 +61,14 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
   const [newPrimeMontant, setNewPrimeMontant] = useState(0);
   const [newPrimeApplicableA, setNewPrimeApplicableA] = useState<'Matelot' | 'Capitaine' | 'Tous'>('Tous');
   const [newPrimeIsBrut, setNewPrimeIsBrut] = useState(true);
+  const [newHeuresSuppNom, setNewHeuresSuppNom] = useState('');
+  const [newHeuresSuppSeuil, setNewHeuresSuppSeuil] = useState(35);
+  const [newHeuresSuppTaux, setNewHeuresSuppTaux] = useState(25);
+  const [newHeuresSuppApplicableA, setNewHeuresSuppApplicableA] = useState<'Matelot' | 'Capitaine' | 'Tous'>('Tous');
+  const [newModulationNom, setNewModulationNom] = useState('');
+  const [newModulationDebut, setNewModulationDebut] = useState(35);
+  const [newModulationFin, setNewModulationFin] = useState(39);
+  const [newModulationApplicableA, setNewModulationApplicableA] = useState<'Matelot' | 'Capitaine' | 'Tous'>('Tous');
 
   const refreshList = () => {
     onEntreprisesUpdated();
@@ -104,6 +128,20 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
           montant: Number(prime.montant) || 0,
           isBrut: prime.isBrut ?? true,
           applicableA: prime.applicableA || 'Tous'
+        })),
+        heuresSupplementaires: (editingEntreprise.heuresSupplementaires || []).map(regle => ({
+          id: regle.id || Date.now().toString(),
+          nom: regle.nom || '',
+          seuilHebdomadaire: Number(regle.seuilHebdomadaire) || 0,
+          tauxMajoration: Number(regle.tauxMajoration) || 0,
+          applicableA: regle.applicableA || 'Tous'
+        })),
+        modulation: (editingEntreprise.modulation || []).map(regle => ({
+          id: regle.id || Date.now().toString(),
+          nom: regle.nom || '',
+          debutHebdomadaire: Number(regle.debutHebdomadaire) || 0,
+          finHebdomadaire: Number(regle.finHebdomadaire) || 0,
+          applicableA: regle.applicableA || 'Tous'
         }))
       };
 
@@ -149,6 +187,60 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
     setEditingEntreprise({
       ...editingEntreprise,
       primes: (editingEntreprise.primes || []).filter(p => p.id !== primeId),
+    });
+  };
+
+  const handleAddHeuresSupp = () => {
+    if (!editingEntreprise || !newHeuresSuppNom || newHeuresSuppSeuil < 0 || newHeuresSuppTaux <= 0) return;
+    const newRegle = {
+      id: Date.now().toString(),
+      nom: newHeuresSuppNom,
+      seuilHebdomadaire: Number(newHeuresSuppSeuil),
+      tauxMajoration: Number(newHeuresSuppTaux),
+      applicableA: newHeuresSuppApplicableA,
+    };
+    setEditingEntreprise({
+      ...editingEntreprise,
+      heuresSupplementaires: [...(editingEntreprise.heuresSupplementaires || []), newRegle],
+    });
+    setNewHeuresSuppNom('');
+    setNewHeuresSuppSeuil(35);
+    setNewHeuresSuppTaux(25);
+    setNewHeuresSuppApplicableA('Tous');
+  };
+
+  const handleRemoveHeuresSupp = (regleId: string) => {
+    if (!editingEntreprise) return;
+    setEditingEntreprise({
+      ...editingEntreprise,
+      heuresSupplementaires: (editingEntreprise.heuresSupplementaires || []).filter(regle => regle.id !== regleId),
+    });
+  };
+
+  const handleAddModulation = () => {
+    if (!editingEntreprise || !newModulationNom || newModulationDebut < 0 || newModulationFin <= newModulationDebut) return;
+    const newRegle = {
+      id: Date.now().toString(),
+      nom: newModulationNom,
+      debutHebdomadaire: Number(newModulationDebut),
+      finHebdomadaire: Number(newModulationFin),
+      applicableA: newModulationApplicableA,
+    };
+    setEditingEntreprise({
+      ...editingEntreprise,
+      modulation: [...(editingEntreprise.modulation || []), newRegle],
+    });
+    setNewModulationNom('');
+    setNewModulationDebut(35);
+    setNewModulationFin(39);
+    setNewModulationApplicableA('Tous');
+  };
+
+  const handleRemoveModulation = (regleId: string) => {
+    if (!editingEntreprise) return;
+    setEditingEntreprise({
+      ...editingEntreprise,
+      modulation: (editingEntreprise.modulation || []).filter(regle => regle.id !== regleId),
     });
   };
 
@@ -322,6 +414,356 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
                   <option value="net">Net</option>
                 </select>
               </div>
+            </div>
+          </div>
+
+          {/* Modulation */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Modulation</label>
+            <div style={{ maxHeight: '220px', overflowY: 'auto', marginBottom: '8px' }}>
+              {(editingEntreprise.modulation || []).map((regle, index) => (
+                <div key={regle.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    value={regle.nom || ''}
+                    onChange={(e) => {
+                      const newRegles = [...(editingEntreprise.modulation || [])];
+                      newRegles[index].nom = e.target.value;
+                      setEditingEntreprise({...editingEntreprise, modulation: newRegles});
+                    }}
+                    placeholder="Nom"
+                    style={{
+                      flex: '1',
+                      minWidth: '140px',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      border: '1px solid #444',
+                      backgroundColor: '#1a1a1a',
+                      color: 'white'
+                    }}
+                  />
+                  <input
+                    type="number"
+                    value={regle.debutHebdomadaire || 0}
+                    onChange={(e) => {
+                      const newRegles = [...(editingEntreprise.modulation || [])];
+                      newRegles[index].debutHebdomadaire = Number(e.target.value);
+                      setEditingEntreprise({...editingEntreprise, modulation: newRegles});
+                    }}
+                    placeholder="Début h/sem"
+                    style={{
+                      flex: '0 0 110px',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      border: '1px solid #444',
+                      backgroundColor: '#1a1a1a',
+                      color: 'white'
+                    }}
+                  />
+                  <input
+                    type="number"
+                    value={regle.finHebdomadaire || 0}
+                    onChange={(e) => {
+                      const newRegles = [...(editingEntreprise.modulation || [])];
+                      newRegles[index].finHebdomadaire = Number(e.target.value);
+                      setEditingEntreprise({...editingEntreprise, modulation: newRegles});
+                    }}
+                    placeholder="Fin h/sem"
+                    style={{
+                      flex: '0 0 110px',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      border: '1px solid #444',
+                      backgroundColor: '#1a1a1a',
+                      color: 'white'
+                    }}
+                  />
+                  <select
+                    value={regle.applicableA || 'Tous'}
+                    onChange={(e) => {
+                      const newRegles = [...(editingEntreprise.modulation || [])];
+                      newRegles[index].applicableA = e.target.value as 'Matelot' | 'Capitaine' | 'Tous';
+                      setEditingEntreprise({...editingEntreprise, modulation: newRegles});
+                    }}
+                    style={{
+                      flex: '0 0 120px',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      border: '1px solid #444',
+                      backgroundColor: '#1a1a1a',
+                      color: 'white'
+                    }}
+                  >
+                    <option value="Tous">Tous</option>
+                    <option value="Matelot">Matelot</option>
+                    <option value="Capitaine">Capitaine</option>
+                  </select>
+                  <button
+                    onClick={() => handleRemoveModulation(regle.id)}
+                    style={{
+                      backgroundColor: '#ff4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '6px 10px',
+                      cursor: 'pointer',
+                      flex: '0 0 30px'
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                value={newModulationNom}
+                onChange={(e) => setNewModulationNom(e.target.value)}
+                placeholder="Ex: Modulation RDTPM"
+                style={{
+                  flex: '1',
+                  minWidth: '140px',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  border: '1px solid #444',
+                  backgroundColor: '#1a1a1a',
+                  color: 'white'
+                }}
+              />
+              <input
+                type="number"
+                value={newModulationDebut}
+                onChange={(e) => setNewModulationDebut(Number(e.target.value))}
+                placeholder="Début h/sem"
+                style={{
+                  flex: '0 0 110px',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  border: '1px solid #444',
+                  backgroundColor: '#1a1a1a',
+                  color: 'white'
+                }}
+              />
+              <input
+                type="number"
+                value={newModulationFin}
+                onChange={(e) => setNewModulationFin(Number(e.target.value))}
+                placeholder="Fin h/sem"
+                style={{
+                  flex: '0 0 110px',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  border: '1px solid #444',
+                  backgroundColor: '#1a1a1a',
+                  color: 'white'
+                }}
+              />
+              <select
+                value={newModulationApplicableA}
+                onChange={(e) => setNewModulationApplicableA(e.target.value as 'Matelot' | 'Capitaine' | 'Tous')}
+                style={{
+                  flex: '0 0 120px',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  border: '1px solid #444',
+                  backgroundColor: '#1a1a1a',
+                  color: 'white'
+                }}
+              >
+                <option value="Tous">Tous</option>
+                <option value="Matelot">Matelot</option>
+                <option value="Capitaine">Capitaine</option>
+              </select>
+              <button
+                onClick={handleAddModulation}
+                style={{
+                  backgroundColor: '#0078d4',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 10px',
+                  cursor: 'pointer',
+                  flex: '0 0 auto'
+                }}
+              >
+                + Ajouter
+              </button>
+            </div>
+          </div>
+
+          {/* Heures supplémentaires */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Heures supplémentaires</label>
+            <div style={{ maxHeight: '260px', overflowY: 'auto', marginBottom: '8px' }}>
+              {(editingEntreprise.heuresSupplementaires || []).map((regle, index) => (
+                <div key={regle.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    value={regle.nom || ''}
+                    onChange={(e) => {
+                      const newRegles = [...(editingEntreprise.heuresSupplementaires || [])];
+                      newRegles[index].nom = e.target.value;
+                      setEditingEntreprise({...editingEntreprise, heuresSupplementaires: newRegles});
+                    }}
+                    placeholder="Nom"
+                    style={{
+                      flex: '1',
+                      minWidth: '140px',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      border: '1px solid #444',
+                      backgroundColor: '#1a1a1a',
+                      color: 'white'
+                    }}
+                  />
+                  <input
+                    type="number"
+                    value={regle.seuilHebdomadaire || 0}
+                    onChange={(e) => {
+                      const newRegles = [...(editingEntreprise.heuresSupplementaires || [])];
+                      newRegles[index].seuilHebdomadaire = Number(e.target.value);
+                      setEditingEntreprise({...editingEntreprise, heuresSupplementaires: newRegles});
+                    }}
+                    placeholder="Seuil h/sem"
+                    style={{
+                      flex: '0 0 110px',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      border: '1px solid #444',
+                      backgroundColor: '#1a1a1a',
+                      color: 'white'
+                    }}
+                  />
+                  <input
+                    type="number"
+                    value={regle.tauxMajoration || 0}
+                    onChange={(e) => {
+                      const newRegles = [...(editingEntreprise.heuresSupplementaires || [])];
+                      newRegles[index].tauxMajoration = Number(e.target.value);
+                      setEditingEntreprise({...editingEntreprise, heuresSupplementaires: newRegles});
+                    }}
+                    placeholder="Majoration %"
+                    style={{
+                      flex: '0 0 120px',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      border: '1px solid #444',
+                      backgroundColor: '#1a1a1a',
+                      color: 'white'
+                    }}
+                  />
+                  <select
+                    value={regle.applicableA || 'Tous'}
+                    onChange={(e) => {
+                      const newRegles = [...(editingEntreprise.heuresSupplementaires || [])];
+                      newRegles[index].applicableA = e.target.value as 'Matelot' | 'Capitaine' | 'Tous';
+                      setEditingEntreprise({...editingEntreprise, heuresSupplementaires: newRegles});
+                    }}
+                    style={{
+                      flex: '0 0 120px',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      border: '1px solid #444',
+                      backgroundColor: '#1a1a1a',
+                      color: 'white'
+                    }}
+                  >
+                    <option value="Tous">Tous</option>
+                    <option value="Matelot">Matelot</option>
+                    <option value="Capitaine">Capitaine</option>
+                  </select>
+                  <button
+                    onClick={() => handleRemoveHeuresSupp(regle.id)}
+                    style={{
+                      backgroundColor: '#ff4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '6px 10px',
+                      cursor: 'pointer',
+                      flex: '0 0 30px'
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                value={newHeuresSuppNom}
+                onChange={(e) => setNewHeuresSuppNom(e.target.value)}
+                placeholder="Ex: 35h à 43h"
+                style={{
+                  flex: '1',
+                  minWidth: '140px',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  border: '1px solid #444',
+                  backgroundColor: '#1a1a1a',
+                  color: 'white'
+                }}
+              />
+              <input
+                type="number"
+                value={newHeuresSuppSeuil}
+                onChange={(e) => setNewHeuresSuppSeuil(Number(e.target.value))}
+                placeholder="Seuil h/sem"
+                style={{
+                  flex: '0 0 110px',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  border: '1px solid #444',
+                  backgroundColor: '#1a1a1a',
+                  color: 'white'
+                }}
+              />
+              <input
+                type="number"
+                value={newHeuresSuppTaux}
+                onChange={(e) => setNewHeuresSuppTaux(Number(e.target.value))}
+                placeholder="Majoration %"
+                style={{
+                  flex: '0 0 120px',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  border: '1px solid #444',
+                  backgroundColor: '#1a1a1a',
+                  color: 'white'
+                }}
+              />
+              <select
+                value={newHeuresSuppApplicableA}
+                onChange={(e) => setNewHeuresSuppApplicableA(e.target.value as 'Matelot' | 'Capitaine' | 'Tous')}
+                style={{
+                  flex: '0 0 120px',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  border: '1px solid #444',
+                  backgroundColor: '#1a1a1a',
+                  color: 'white'
+                }}
+              >
+                <option value="Tous">Tous</option>
+                <option value="Matelot">Matelot</option>
+                <option value="Capitaine">Capitaine</option>
+              </select>
+              <button
+                onClick={handleAddHeuresSupp}
+                style={{
+                  backgroundColor: '#0078d4',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 10px',
+                  cursor: 'pointer',
+                  flex: '0 0 auto'
+                }}
+              >
+                + Ajouter
+              </button>
             </div>
           </div>
 
@@ -583,6 +1025,30 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
                         {entreprise.primes.map(prime => (
                           <li key={prime.id} style={{ color: '#ddd', fontSize: '14px' }}>
                             {prime.nom}: {prime.montant}€ ({prime.isBrut ? 'Brut' : 'Net'}) - {prime.applicableA}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {(entreprise.modulation || []).length > 0 && (
+                    <div style={{ marginTop: '8px' }}>
+                      <strong style={{ color: '#aaa' }}>Modulation:</strong>
+                      <ul style={{ margin: '5px 0 0 20px', padding: 0 }}>
+                        {(entreprise.modulation || []).map(regle => (
+                          <li key={regle.id} style={{ color: '#ddd', fontSize: '14px' }}>
+                            {regle.nom}: {regle.debutHebdomadaire}h à {regle.finHebdomadaire}h/sem - {regle.applicableA}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {(entreprise.heuresSupplementaires || []).length > 0 && (
+                    <div style={{ marginTop: '8px' }}>
+                      <strong style={{ color: '#aaa' }}>Heures supplémentaires:</strong>
+                      <ul style={{ margin: '5px 0 0 20px', padding: 0 }}>
+                        {(entreprise.heuresSupplementaires || []).map(regle => (
+                          <li key={regle.id} style={{ color: '#ddd', fontSize: '14px' }}>
+                            {regle.nom}: au-delà de {regle.seuilHebdomadaire}h/sem, +{regle.tauxMajoration}% - {regle.applicableA}
                           </li>
                         ))}
                       </ul>

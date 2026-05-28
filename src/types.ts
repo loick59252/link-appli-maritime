@@ -16,6 +16,22 @@ export type Salaire = {
   isBrut: boolean;
 };
 
+export type RegleHeuresSupplementaires = {
+  id: string;
+  nom: string;
+  seuilHebdomadaire: number;
+  tauxMajoration: number;
+  applicableA: ApplicableA;
+};
+
+export type RegleModulation = {
+  id: string;
+  nom: string;
+  debutHebdomadaire: number;
+  finHebdomadaire: number;
+  applicableA: ApplicableA;
+};
+
 export type Entreprise = {
   id: string;
   nom: string;
@@ -26,6 +42,8 @@ export type Entreprise = {
     capitaine: Salaire;
   };
   primes: Prime[];
+  heuresSupplementaires?: RegleHeuresSupplementaires[];
+  modulation?: RegleModulation[];
 };
 
 export type Saison = {
