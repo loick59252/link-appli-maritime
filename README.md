@@ -45,3 +45,14 @@
 * distinction rôle 
 * export
 * stat annuelle
+
+# Infos VM
+* VM débian dans virtualbox -> démarrer sans GUI
+* User : loick, root
+* mdp : P@ssw0rd
+* IP : 192.168.1.30
+* @appli : http://192.168.1.30:5173/
+* Lancer le serveur :
+    - cd ~/Appli-Planning
+    - npm run dev
+* Push git : git pushall "Texte de commit" (dans le bon dossier)
