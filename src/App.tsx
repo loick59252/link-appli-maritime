@@ -313,8 +313,11 @@ function App() {
                   if (!entreprise) return null;
                   return (
                     <span
-                      className="calendar-color-marker"
-                      style={{ backgroundColor: entreprise.couleur ?? '#555' }}
+                      className="calendar-day-color"
+                      style={{
+                        backgroundColor: hexToRgba(entreprise.couleur, 0.22) ?? 'rgba(85, 85, 85, 0.22)',
+                        borderColor: entreprise.couleur ?? '#555',
+                      }}
                       aria-hidden="true"
                     />
                   );
