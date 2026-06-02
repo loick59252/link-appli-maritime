@@ -1,8 +1,10 @@
 // src/components/TourForm.tsx
 import { useState, useEffect } from 'react';
+import type { FormEvent } from 'react';
 import { getSaisons } from './../services/saisons';
 import { ajouterTour, mettreAJourTour } from './../services/tours';
 import { getEntreprises } from './../services/entreprises';
+import { useAppDialog } from './AppDialog';
 
 type TourFormProps = {
   onClose: () => void;
@@ -11,6 +13,7 @@ type TourFormProps = {
 };
 
 export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) => {
+  const { alert } = useAppDialog();
   const [numero, setNumero] = useState<string>(tourToEdit?.numero || '');
   const [saisonId, setSaisonId] = useState<string>(tourToEdit?.saisonId || '');
   const [heurePriseService, setHeurePriseService] = useState<string>(tourToEdit?.heurePriseService || '');
@@ -48,14 +51,14 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
     loadData();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!numero || !saisonId || !heurePriseService || !heureFinService) {
-      alert("Veuillez remplir tous les champs obligatoires.");
+      await alert("Veuillez remplir tous les champs obligatoires.");
       return;
     }
     if (!rdtpmId) {
-      alert("Impossible de trouver l'entreprise RDTPM.");
+      await alert("Impossible de trouver l'entreprise RDTPM.");
       return;
     }
 
@@ -75,15 +78,15 @@ export const TourForm = ({ onClose, onTourAjoute, tourToEdit }: TourFormProps) =
     try {
       if (isEditMode && tourToEdit) {
         await mettreAJourTour(tourToEdit.id, tourData);
-        alert("Tour modifié avec succès !");
+        await alert("Tour modifié avec succès !");
       } else {
         await ajouterTour(tourData);
-        alert("Tour ajouté avec succès !");
+        await alert("Tour ajouté avec succès !");
       }
       onTourAjoute();
       onClose();
     } catch (error) {
-      alert(`Erreur: ${error}`);
+      await alert(`Erreur: ${error}`, { title: 'Erreur' });
     }
   };
 

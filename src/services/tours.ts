@@ -5,13 +5,18 @@ import type { Tour } from '../types';
 
 export type { Tour };
 
+const sansValeursUndefined = <T extends object>(data: T): Partial<T> =>
+  Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined)
+  ) as Partial<T>;
+
 export const ajouterTour = async (tour: Omit<Tour, 'id'>): Promise<string> => {
-  const docRef = await addDoc(collection(db, 'tours'), tour);
+  const docRef = await addDoc(collection(db, 'tours'), sansValeursUndefined(tour));
   return docRef.id;
 };
 
 export const mettreAJourTour = async (id: string, data: Partial<Tour>): Promise<void> => {
-  await updateDoc(doc(db, 'tours', id), data);
+  await updateDoc(doc(db, 'tours', id), sansValeursUndefined(data));
 };
 
 export const supprimerTour = async (id: string): Promise<void> => {

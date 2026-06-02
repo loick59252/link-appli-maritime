@@ -1,11 +1,14 @@
 // src/components/EntrepriseList.tsx
 import { useState } from 'react';
 import { mettreAJourEntreprise, ajouterEntreprise, supprimerEntreprise } from '../services/entreprises';
+import { useAppDialog } from './AppDialog';
+import { trierEntreprisesAvecFavoris } from '../utils/entreprises';
 
 type Entreprise = {
   id: string;
   nom: string;
   couleur: string;
+  favori?: boolean;
   logo?: string;
   salaires: {
     matelot: { montant: number; isBrut: boolean };
@@ -32,6 +35,12 @@ type Entreprise = {
     finHebdomadaire: number;
     applicableA: 'Matelot' | 'Capitaine' | 'Tous';
   }[];
+  fonctionnalites?: {
+    utiliseSaisons: boolean;
+    utiliseTours: boolean;
+    utiliseModulation: boolean;
+    utiliseHeuresSupplementaires: boolean;
+  };
 };
 
 type EntrepriseListProps = {
@@ -45,16 +54,24 @@ type EntrepriseListProps = {
 const nouvelleEntrepriseVide = (): Omit<Entreprise, 'id'> => ({
   nom: '',
   couleur: '#0078d4',
+  favori: false,
   salaires: {
     matelot: { montant: 0, isBrut: true },
     capitaine: { montant: 0, isBrut: true }
   },
   primes: [],
+  fonctionnalites: {
+    utiliseSaisons: false,
+    utiliseTours: false,
+    utiliseModulation: false,
+    utiliseHeuresSupplementaires: false
+  },
   heuresSupplementaires: [],
   modulation: []
 });
 
 export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, setRdtpmId }: EntrepriseListProps) => {
+  const { alert, confirm } = useAppDialog();
   // ✅ État initial corrigé : Partial<Entreprise> + id optionnel
   const [editingEntreprise, setEditingEntreprise] = useState<Partial<Entreprise> & { id?: string } | null>(null);
   const [newPrimeNom, setNewPrimeNom] = useState('');
@@ -70,6 +87,8 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
   const [newModulationFin, setNewModulationFin] = useState(39);
   const [newModulationApplicableA, setNewModulationApplicableA] = useState<'Matelot' | 'Capitaine' | 'Tous'>('Tous');
 
+  const entreprisesOrdonnees = trierEntreprisesAvecFavoris(entreprises);
+
   const refreshList = () => {
     onEntreprisesUpdated();
   };
@@ -83,27 +102,49 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
   };
 
   const handleEdit = (entreprise: Entreprise) => {
-    setEditingEntreprise({ ...entreprise });
+    setEditingEntreprise({
+      ...entreprise,
+      fonctionnalites: {
+        utiliseSaisons: entreprise.fonctionnalites?.utiliseSaisons ?? entreprise.nom === 'RDTPM',
+        utiliseTours: entreprise.fonctionnalites?.utiliseTours ?? entreprise.nom === 'RDTPM',
+        utiliseModulation: entreprise.fonctionnalites?.utiliseModulation ?? (entreprise.modulation || []).length > 0,
+        utiliseHeuresSupplementaires: entreprise.fonctionnalites?.utiliseHeuresSupplementaires ?? (entreprise.heuresSupplementaires || []).length > 0,
+      }
+    });
   };
 
   const handleDeleteEntreprise = async (id: string, nom: string) => {
-    if (window.confirm(`Êtes-vous sûr de vouloir supprimer l'entreprise "${nom}" ?`)) {
-      try {
-        await supprimerEntreprise(id);
-        if (id === rdtpmId) {
-          setRdtpmId('');
-          localStorage.removeItem('RDTPM_ID');
-        }
-        refreshList();
-      } catch (error) {
-        alert(`Erreur lors de la suppression: ${error}`);
+    const shouldDelete = await confirm(`Êtes-vous sûr de vouloir supprimer l'entreprise "${nom}" ?`, {
+      title: 'Supprimer l’entreprise',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (!shouldDelete) return;
+
+    try {
+      await supprimerEntreprise(id);
+      if (id === rdtpmId) {
+        setRdtpmId('');
+        localStorage.removeItem('RDTPM_ID');
       }
+      refreshList();
+    } catch (error) {
+      await alert(`Erreur lors de la suppression: ${error}`, { title: 'Erreur' });
+    }
+  };
+
+  const handleToggleFavori = async (entreprise: Entreprise) => {
+    try {
+      await mettreAJourEntreprise(entreprise.id, { favori: !entreprise.favori });
+      refreshList();
+    } catch (error) {
+      await alert(`Erreur lors de la mise a jour du favori: ${error}`, { title: 'Erreur' });
     }
   };
 
   const handleSave = async () => {
     if (!editingEntreprise?.nom) {
-      alert("Le nom de l'entreprise est obligatoire.");
+      await alert("Le nom de l'entreprise est obligatoire.");
       return;
     }
 
@@ -112,6 +153,13 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
       const entrepriseData: Omit<Entreprise, 'id'> = {
         nom: editingEntreprise.nom || '',
         couleur: editingEntreprise.couleur || '#0078d4',
+        favori: editingEntreprise.favori ?? false,
+        fonctionnalites: {
+          utiliseSaisons: editingEntreprise.fonctionnalites?.utiliseSaisons ?? false,
+          utiliseTours: editingEntreprise.fonctionnalites?.utiliseTours ?? false,
+          utiliseModulation: editingEntreprise.fonctionnalites?.utiliseModulation ?? false,
+          utiliseHeuresSupplementaires: editingEntreprise.fonctionnalites?.utiliseHeuresSupplementaires ?? false,
+        },
         salaires: {
           matelot: {
             montant: Number(editingEntreprise.salaires?.matelot?.montant) || 0,
@@ -162,7 +210,7 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
       setEditingEntreprise(null);
     } catch (error) {
       console.error("Erreur complète:", error);
-      alert(`Erreur: ${error}`);
+      await alert(`Erreur: ${error}`, { title: 'Erreur' });
     }
   };
 
@@ -244,6 +292,23 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
     });
   };
 
+  const updateFonctionnalite = (
+    key: keyof NonNullable<Entreprise['fonctionnalites']>,
+    value: boolean
+  ) => {
+    if (!editingEntreprise) return;
+    setEditingEntreprise({
+      ...editingEntreprise,
+      fonctionnalites: {
+        utiliseSaisons: editingEntreprise.fonctionnalites?.utiliseSaisons ?? false,
+        utiliseTours: editingEntreprise.fonctionnalites?.utiliseTours ?? false,
+        utiliseModulation: editingEntreprise.fonctionnalites?.utiliseModulation ?? false,
+        utiliseHeuresSupplementaires: editingEntreprise.fonctionnalites?.utiliseHeuresSupplementaires ?? false,
+        [key]: value,
+      },
+    });
+  };
+
   // ✅ AFFICHAGE DU FORMULAIRE (corrigé)
   if (editingEntreprise !== null) {
     return (
@@ -302,6 +367,56 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
               onChange={(e) => setEditingEntreprise({...editingEntreprise, couleur: e.target.value})}
               style={{ width: '100%', height: '40px', border: 'none', borderRadius: '4px' }}
             />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={editingEntreprise.favori ?? false}
+                onChange={(e) => setEditingEntreprise({ ...editingEntreprise, favori: e.target.checked })}
+              />
+              Mettre cette entreprise en favori
+            </label>
+          </div>
+
+          {/* Fonctionnalités */}
+          <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #444', borderRadius: '6px', backgroundColor: '#222' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Fonctionnalités</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={editingEntreprise.fonctionnalites?.utiliseSaisons ?? false}
+                  onChange={(e) => updateFonctionnalite('utiliseSaisons', e.target.checked)}
+                />
+                Utilise les saisons
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={editingEntreprise.fonctionnalites?.utiliseTours ?? false}
+                  onChange={(e) => updateFonctionnalite('utiliseTours', e.target.checked)}
+                />
+                Utilise les tours
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={editingEntreprise.fonctionnalites?.utiliseModulation ?? false}
+                  onChange={(e) => updateFonctionnalite('utiliseModulation', e.target.checked)}
+                />
+                Utilise la modulation
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={editingEntreprise.fonctionnalites?.utiliseHeuresSupplementaires ?? false}
+                  onChange={(e) => updateFonctionnalite('utiliseHeuresSupplementaires', e.target.checked)}
+                />
+                Utilise les heures supplémentaires
+              </label>
+            </div>
           </div>
 
           {/* Salaires */}
@@ -418,6 +533,7 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
           </div>
 
           {/* Modulation */}
+          {(editingEntreprise.fonctionnalites?.utiliseModulation ?? false) && (
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', marginBottom: '4px' }}>Modulation</label>
             <div style={{ maxHeight: '220px', overflowY: 'auto', marginBottom: '8px' }}>
@@ -478,26 +594,39 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
                       color: 'white'
                     }}
                   />
-                  <select
-                    value={regle.applicableA || 'Tous'}
-                    onChange={(e) => {
-                      const newRegles = [...(editingEntreprise.modulation || [])];
-                      newRegles[index].applicableA = e.target.value as 'Matelot' | 'Capitaine' | 'Tous';
-                      setEditingEntreprise({...editingEntreprise, modulation: newRegles});
-                    }}
-                    style={{
-                      flex: '0 0 120px',
-                      padding: '6px',
-                      borderRadius: '4px',
-                      border: '1px solid #444',
-                      backgroundColor: '#1a1a1a',
-                      color: 'white'
-                    }}
-                  >
-                    <option value="Tous">Tous</option>
-                    <option value="Matelot">Matelot</option>
-                    <option value="Capitaine">Capitaine</option>
-                  </select>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ddd', fontSize: '13px', flex: '0 0 190px' }}>
+                    <input
+                      type="checkbox"
+                      checked={(regle.applicableA || 'Tous') === 'Tous'}
+                      onChange={(e) => {
+                        const newRegles = [...(editingEntreprise.modulation || [])];
+                        newRegles[index].applicableA = e.target.checked ? 'Tous' : 'Matelot';
+                        setEditingEntreprise({...editingEntreprise, modulation: newRegles});
+                      }}
+                    />
+                    Commun a tous les roles
+                  </label>
+                  {(regle.applicableA || 'Tous') !== 'Tous' && (
+                    <select
+                      value={regle.applicableA || 'Matelot'}
+                      onChange={(e) => {
+                        const newRegles = [...(editingEntreprise.modulation || [])];
+                        newRegles[index].applicableA = e.target.value as 'Matelot' | 'Capitaine';
+                        setEditingEntreprise({...editingEntreprise, modulation: newRegles});
+                      }}
+                      style={{
+                        flex: '0 0 120px',
+                        padding: '6px',
+                        borderRadius: '4px',
+                        border: '1px solid #444',
+                        backgroundColor: '#1a1a1a',
+                        color: 'white'
+                      }}
+                    >
+                      <option value="Matelot">Matelot</option>
+                      <option value="Capitaine">Capitaine</option>
+                    </select>
+                  )}
                   <button
                     onClick={() => handleRemoveModulation(regle.id)}
                     style={{
@@ -559,22 +688,31 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
                   color: 'white'
                 }}
               />
-              <select
-                value={newModulationApplicableA}
-                onChange={(e) => setNewModulationApplicableA(e.target.value as 'Matelot' | 'Capitaine' | 'Tous')}
-                style={{
-                  flex: '0 0 120px',
-                  padding: '6px',
-                  borderRadius: '4px',
-                  border: '1px solid #444',
-                  backgroundColor: '#1a1a1a',
-                  color: 'white'
-                }}
-              >
-                <option value="Tous">Tous</option>
-                <option value="Matelot">Matelot</option>
-                <option value="Capitaine">Capitaine</option>
-              </select>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ddd', fontSize: '13px', flex: '0 0 190px' }}>
+                <input
+                  type="checkbox"
+                  checked={newModulationApplicableA === 'Tous'}
+                  onChange={(e) => setNewModulationApplicableA(e.target.checked ? 'Tous' : 'Matelot')}
+                />
+                Commun a tous les roles
+              </label>
+              {newModulationApplicableA !== 'Tous' && (
+                <select
+                  value={newModulationApplicableA}
+                  onChange={(e) => setNewModulationApplicableA(e.target.value as 'Matelot' | 'Capitaine')}
+                  style={{
+                    flex: '0 0 120px',
+                    padding: '6px',
+                    borderRadius: '4px',
+                    border: '1px solid #444',
+                    backgroundColor: '#1a1a1a',
+                    color: 'white'
+                  }}
+                >
+                  <option value="Matelot">Matelot</option>
+                  <option value="Capitaine">Capitaine</option>
+                </select>
+              )}
               <button
                 onClick={handleAddModulation}
                 style={{
@@ -591,8 +729,10 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
               </button>
             </div>
           </div>
+          )}
 
           {/* Heures supplémentaires */}
+          {(editingEntreprise.fonctionnalites?.utiliseHeuresSupplementaires ?? false) && (
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', marginBottom: '4px' }}>Heures supplémentaires</label>
             <div style={{ maxHeight: '260px', overflowY: 'auto', marginBottom: '8px' }}>
@@ -766,6 +906,7 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
               </button>
             </div>
           </div>
+          )}
 
           {/* Primes */}
           <div style={{ marginBottom: '12px' }}>
@@ -1000,7 +1141,7 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
 
       {entreprises.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {entreprises.map((entreprise) => (
+          {entreprisesOrdonnees.map((entreprise) => (
             <div
               key={entreprise.id}
               className="entreprise-card"
@@ -1013,11 +1154,22 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: 1 }}>
-                  <h3 style={{ margin: 0, color: 'white' }}>{entreprise.nom}</h3>
+                  <h3 style={{ margin: 0, color: 'white' }}>
+                    {entreprise.favori && <span style={{ color: '#f5c542', marginRight: '6px' }}>*</span>}
+                    {entreprise.nom}
+                  </h3>
                   <div style={{ margin: '5px 0 0 0', color: '#aaa', fontSize: '14px' }}>
                     <p>Matelot: {entreprise.salaires.matelot.montant}€ ({entreprise.salaires.matelot.isBrut ? 'Brut' : 'Net'})</p>
                     <p>Capitaine: {entreprise.salaires.capitaine.montant}€ ({entreprise.salaires.capitaine.isBrut ? 'Brut' : 'Net'})</p>
                   </div>
+                  {entreprise.fonctionnalites && (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                      {entreprise.fonctionnalites.utiliseSaisons && <span style={{ color: '#ddd', fontSize: '12px', backgroundColor: '#1a1a1a', padding: '3px 8px', borderRadius: '4px' }}>Saisons</span>}
+                      {entreprise.fonctionnalites.utiliseTours && <span style={{ color: '#ddd', fontSize: '12px', backgroundColor: '#1a1a1a', padding: '3px 8px', borderRadius: '4px' }}>Tours</span>}
+                      {entreprise.fonctionnalites.utiliseModulation && <span style={{ color: '#ddd', fontSize: '12px', backgroundColor: '#1a1a1a', padding: '3px 8px', borderRadius: '4px' }}>Modulation</span>}
+                      {entreprise.fonctionnalites.utiliseHeuresSupplementaires && <span style={{ color: '#ddd', fontSize: '12px', backgroundColor: '#1a1a1a', padding: '3px 8px', borderRadius: '4px' }}>Heures supp</span>}
+                    </div>
+                  )}
                   {entreprise.primes.length > 0 && (
                     <div style={{ marginTop: '8px' }}>
                       <strong style={{ color: '#aaa' }}>Primes:</strong>
@@ -1057,34 +1209,25 @@ export const EntrepriseList = ({ entreprises, onEntreprisesUpdated, rdtpmId, set
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
+                    onClick={(e) => { e.stopPropagation(); handleToggleFavori(entreprise); }}
+                    className={`favorite-button${entreprise.favori ? ' is-favorite' : ''}`}
+                    title={entreprise.favori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  >
+                    ★
+                  </button>
+                  <button
                     onClick={(e) => { e.stopPropagation(); handleEdit(entreprise); }}
-                    style={{
-                      backgroundColor: '#0078d4',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      padding: '6px 12px',
-                      cursor: 'pointer',
-                      fontSize: '14px'
-                    }}
+                    className="edit-action-button"
                     title="Modifier"
                   >
-                    ✏️
+                    Modifier
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeleteEntreprise(entreprise.id, entreprise.nom); }}
-                    style={{
-                      backgroundColor: '#ff4444',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      padding: '6px 12px',
-                      cursor: 'pointer',
-                      fontSize: '14px'
-                    }}
+                    className="delete-button"
                     title="Supprimer"
                   >
-                    🗑️
+                    Supprimer
                   </button>
                 </div>
               </div>

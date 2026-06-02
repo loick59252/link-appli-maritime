@@ -2,6 +2,7 @@
 
 export type Role = 'Matelot' | 'Capitaine';
 export type ApplicableA = 'Matelot' | 'Capitaine' | 'Tous';
+export type StatutJournee = 'travaille' | 'rh' | 'ca' | 'mhn' | 'permute';
 
 export type Prime = {
   id: string;
@@ -32,22 +33,32 @@ export type RegleModulation = {
   applicableA: ApplicableA;
 };
 
+export type FonctionnalitesEntreprise = {
+  utiliseSaisons: boolean;
+  utiliseTours: boolean;
+  utiliseModulation: boolean;
+  utiliseHeuresSupplementaires: boolean;
+};
+
 export type Entreprise = {
   id: string;
   nom: string;
   couleur: string;
+  favori?: boolean;
   logo?: string;
   salaires: {
     matelot: Salaire;
     capitaine: Salaire;
   };
   primes: Prime[];
+  fonctionnalites?: FonctionnalitesEntreprise;
   heuresSupplementaires?: RegleHeuresSupplementaires[];
   modulation?: RegleModulation[];
 };
 
 export type Saison = {
   id: string;
+  entrepriseId: string;
   nom: string;
   dateDebut: string;
   dateFin: string;
@@ -70,6 +81,7 @@ export type Tour = {
 export type Journee = {
   id: string;
   date: string;
+  statut?: StatutJournee;
   entrepriseId: string;
   role: Role;
   heurePriseService: string;

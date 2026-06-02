@@ -1,6 +1,6 @@
 // src/services/saisons.ts
 import { db } from '../firebaseConfig';
-import { collection, addDoc, updateDoc, deleteDoc, getDocs, doc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, getDocs, doc, query, where } from 'firebase/firestore';
 import type { Saison } from '../types';
 
 export type { Saison };
@@ -20,5 +20,11 @@ export const supprimerSaison = async (id: string): Promise<void> => {
 
 export const getSaisons = async (): Promise<Saison[]> => {
   const snapshot = await getDocs(collection(db, 'saisons'));
+  return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Saison));
+};
+
+export const getSaisonsParEntreprise = async (entrepriseId: string): Promise<Saison[]> => {
+  const q = query(collection(db, 'saisons'), where('entrepriseId', '==', entrepriseId));
+  const snapshot = await getDocs(q);
   return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Saison));
 };

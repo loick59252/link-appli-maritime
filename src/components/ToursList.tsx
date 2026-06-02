@@ -1,18 +1,18 @@
 // src/components/ToursList.tsx
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ajouterTour, mettreAJourTour, supprimerTour } from '../services/tours';
-import { getSaisons } from '../services/saisons';
 import { calculerMinutesJournee, formatDureeHHMM } from '../utils/calculs';
-import type { Tour, Saison, Entreprise, Journee } from '../types';
+import { useAppDialog } from './AppDialog';
+import type { Entreprise, Journee, Saison, Tour } from '../types';
+import { libelleEntreprise, trierEntreprisesAvecFavoris } from '../utils/entreprises';
 
 type ToursListProps = {
   tours: Tour[];
+  saisons: Saison[];
   onToursUpdated: () => void;
   entreprises: Entreprise[];
-  rdtpmId: string;
 };
 
-/** Adapte un tour en pseudo-journée pour calculer la durée */
 const tourToJournee = (tour: Tour): Pick<Journee, 'heurePriseService' | 'heureFinService' | 'heureDepartPause' | 'heureReprise'> => ({
   heurePriseService: tour.heurePriseService,
   heureFinService: tour.heureFinService,
@@ -20,7 +20,6 @@ const tourToJournee = (tour: Tour): Pick<Journee, 'heurePriseService' | 'heureFi
   heureReprise: tour.heureReprise ?? null,
 });
 
-/** Composant switch réutilisable */
 const Switch = ({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) => (
   <div
     onClick={() => onChange(!value)}
@@ -51,23 +50,39 @@ const NOUVEAU_TOUR: Partial<Tour> = {
   estActif: true,
 };
 
-export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: ToursListProps) => {
-  const [editingTour, setEditingTour] = useState<Partial<Tour> & { id?: string } | null>(null);
-  const [saisons, setSaisons] = useState<Saison[]>([]);
+const utiliseTours = (entreprise: Entreprise) =>
+  entreprise.fonctionnalites?.utiliseTours ?? entreprise.nom === 'RDTPM';
+
+const dateFr = (date: string) => new Date(date + 'T12:00:00').toLocaleDateString('fr-FR');
+
+export const ToursList = ({ tours, saisons, onToursUpdated, entreprises }: ToursListProps) => {
+  const { alert, confirm } = useAppDialog();
+  const entreprisesAvecTours = useMemo(
+    () => trierEntreprisesAvecFavoris(entreprises.filter(utiliseTours)),
+    [entreprises]
+  );
+  const [selectedEntrepriseId, setSelectedEntrepriseId] = useState(entreprisesAvecTours[0]?.id ?? '');
   const [selectedSaisonId, setSelectedSaisonId] = useState('');
   const [showOnlyActifs, setShowOnlyActifs] = useState(false);
+  const [editingTour, setEditingTour] = useState<Partial<Tour> & { id?: string } | null>(null);
 
-  const rdtpm = useMemo(() => entreprises.find(e => e.id === rdtpmId), [entreprises, rdtpmId]);
+  const entrepriseCouranteId = selectedEntrepriseId || entreprisesAvecTours[0]?.id || '';
+  const entrepriseCourante = entreprises.find(e => e.id === entrepriseCouranteId);
 
-  useEffect(() => {
-    getSaisons().then(setSaisons);
-  }, []);
+  const saisonsEntreprise = useMemo(
+    () => saisons
+      .filter(s => s.entrepriseId === entrepriseCouranteId || (!s.entrepriseId && entrepriseCourante?.nom === 'RDTPM'))
+      .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut)),
+    [saisons, entrepriseCouranteId, entrepriseCourante]
+  );
 
-  const filteredTours = useMemo(() =>
-    tours
+  const filteredTours = useMemo(
+    () => tours
+      .filter(t => t.entrepriseId === entrepriseCouranteId)
       .filter(t => !selectedSaisonId || t.saisonId === selectedSaisonId)
-      .filter(t => !showOnlyActifs || t.estActif),
-    [tours, selectedSaisonId, showOnlyActifs]
+      .filter(t => !showOnlyActifs || t.estActif)
+      .sort((a, b) => a.numero.localeCompare(b.numero, undefined, { numeric: true })),
+    [tours, entrepriseCouranteId, selectedSaisonId, showOnlyActifs]
   );
 
   const handleToggleActif = async (tour: Tour) => {
@@ -75,21 +90,33 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
       await mettreAJourTour(tour.id, { estActif: !tour.estActif });
       onToursUpdated();
     } catch (error) {
-      alert(`Erreur : ${error}`);
+      await alert(`Erreur : ${error}`, { title: 'Erreur' });
     }
   };
 
+  const handleAddTour = () => {
+    if (!entrepriseCouranteId) {
+      void alert('Activez les tours sur une entreprise avant d’en ajouter.');
+      return;
+    }
+    setEditingTour({
+      ...NOUVEAU_TOUR,
+      entrepriseId: entrepriseCouranteId,
+      saisonId: selectedSaisonId || saisonsEntreprise[0]?.id || '',
+    });
+  };
+
   const handleSave = async () => {
-    if (!editingTour?.numero || !editingTour?.saisonId) {
-      alert('Veuillez remplir tous les champs obligatoires.');
+    if (!editingTour?.numero || !editingTour?.entrepriseId) {
+      await alert('Veuillez remplir tous les champs obligatoires.');
       return;
     }
 
     const lignesRaw = editingTour.lignesDestinations as string[] | string | undefined;
     const tourData: Omit<Tour, 'id'> = {
-      numero: editingTour.numero!,
-      saisonId: editingTour.saisonId!,
-      entrepriseId: rdtpmId,
+      numero: editingTour.numero,
+      saisonId: editingTour.saisonId || '',
+      entrepriseId: editingTour.entrepriseId,
       heurePriseService: editingTour.heurePriseService ?? '08:00',
       heureFinService: editingTour.heureFinService ?? '16:00',
       heureDepartPause: editingTour.heureDepartPause,
@@ -110,17 +137,22 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
       onToursUpdated();
       setEditingTour(null);
     } catch (error) {
-      alert(`Erreur : ${error}`);
+      await alert(`Erreur : ${error}`, { title: 'Erreur' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Supprimer ce tour ?')) return;
+    const shouldDelete = await confirm('Supprimer ce tour ?', {
+      title: 'Supprimer le tour',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (!shouldDelete) return;
     try {
       await supprimerTour(id);
       onToursUpdated();
     } catch (error) {
-      alert(`Erreur : ${error}`);
+      await alert(`Erreur : ${error}`, { title: 'Erreur' });
     }
   };
 
@@ -135,16 +167,41 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
     });
   };
 
-  // ────── Formulaire modal ──────
+  if (entreprisesAvecTours.length === 0) {
+    return (
+      <div className="tours-container">
+        <h2>Gestion des tours</h2>
+        <p style={{ color: '#aaa' }}>
+          Aucune entreprise n’utilise les tours. Activez l’option dans le formulaire d’entreprise.
+        </p>
+      </div>
+    );
+  }
+
   if (editingTour) {
     const lignesValue = Array.isArray(editingTour.lignesDestinations)
       ? editingTour.lignesDestinations.join(', ')
       : editingTour.lignesDestinations ?? '';
+    const entrepriseEdition = entreprises.find(e => e.id === editingTour.entrepriseId);
+    const saisonsEdition = saisons.filter(s => s.entrepriseId === editingTour.entrepriseId || (!s.entrepriseId && entrepriseEdition?.nom === 'RDTPM'));
 
     return (
       <div className="modal-overlay">
         <div className="modal-container">
           <h2>{editingTour.id ? 'Modifier' : 'Ajouter'} un tour</h2>
+
+          <div className="form-group">
+            <label>Entreprise</label>
+            <select
+              value={editingTour.entrepriseId || entrepriseCouranteId}
+              onChange={e => setEditingTour({ ...editingTour, entrepriseId: e.target.value, saisonId: '' })}
+              className="modal-input"
+            >
+              {entreprisesAvecTours.map(entreprise => (
+                <option key={entreprise.id} value={entreprise.id}>{libelleEntreprise(entreprise)}</option>
+              ))}
+            </select>
+          </div>
 
           <div className="form-group">
             <label>Numéro</label>
@@ -153,7 +210,7 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
               value={editingTour.numero ?? ''}
               onChange={e => setEditingTour({ ...editingTour, numero: e.target.value })}
               className="modal-input"
-              placeholder="Ex: 1, 2, A…"
+              placeholder="Ex: 1, 2, A..."
             />
           </div>
 
@@ -164,10 +221,10 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
               onChange={e => setEditingTour({ ...editingTour, saisonId: e.target.value })}
               className="modal-input"
             >
-              <option value="">— Sélectionner une saison —</option>
-              {saisons.map(s => (
+              <option value="">Aucune saison</option>
+              {saisonsEdition.map(s => (
                 <option key={s.id} value={s.id}>
-                  {s.nom} ({new Date(s.dateDebut + 'T12:00:00').toLocaleDateString('fr-FR')} – {new Date(s.dateFin + 'T12:00:00').toLocaleDateString('fr-FR')})
+                  {s.nom} ({dateFr(s.dateDebut)} - {dateFr(s.dateFin)})
                 </option>
               ))}
             </select>
@@ -217,15 +274,15 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
               value={lignesValue}
               onChange={e => setEditingTour({ ...editingTour, lignesDestinations: e.target.value as any })}
               className="modal-input"
-              placeholder="Ex: 28M, 8M, L1…"
+              placeholder="Ex: 28M, 8M, L1..."
             />
           </div>
 
-          {rdtpm && rdtpm.primes?.length > 0 && (
+          {entrepriseEdition && entrepriseEdition.primes?.length > 0 && (
             <div className="form-group">
               <label>Primes associées</label>
               <div className="primes-checkbox-group">
-                {rdtpm.primes.map(prime => (
+                {entrepriseEdition.primes.map(prime => (
                   <label key={prime.id} className="checkbox-label">
                     <input
                       type="checkbox"
@@ -252,18 +309,31 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
     );
   }
 
-  // ────── Liste des tours ──────
   return (
     <div className="tours-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '12px', flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0 }}>Gestion des tours</h2>
-        <button className="add-journee-button" onClick={() => setEditingTour({ ...NOUVEAU_TOUR, saisonId: saisons[0]?.id ?? '' })}>
+        <button className="add-journee-button" onClick={handleAddTour}>
           + Ajouter un tour
         </button>
       </div>
 
-      {/* Filtres */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label style={{ fontWeight: 'bold' }}>Entreprise :</label>
+          <select
+            value={entrepriseCouranteId}
+            onChange={e => {
+              setSelectedEntrepriseId(e.target.value);
+              setSelectedSaisonId('');
+            }}
+            style={{ padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#2a2a2a', color: 'white' }}
+          >
+            {entreprisesAvecTours.map(entreprise => (
+              <option key={entreprise.id} value={entreprise.id}>{libelleEntreprise(entreprise)}</option>
+            ))}
+          </select>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <label style={{ fontWeight: 'bold' }}>Saison :</label>
           <select
@@ -272,9 +342,9 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
             style={{ padding: '8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#2a2a2a', color: 'white' }}
           >
             <option value="">Toutes les saisons</option>
-            {saisons.map(s => (
+            {saisonsEntreprise.map(s => (
               <option key={s.id} value={s.id}>
-                {s.nom} ({new Date(s.dateDebut + 'T12:00:00').toLocaleDateString('fr-FR')} – {new Date(s.dateFin + 'T12:00:00').toLocaleDateString('fr-FR')})
+                {s.nom} ({dateFr(s.dateDebut)} - {dateFr(s.dateFin)})
               </option>
             ))}
           </select>
@@ -294,9 +364,9 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
             const saison = saisons.find(s => s.id === tour.saisonId);
             return (
               <div key={tour.id} className="tour-card" style={{ backgroundColor: '#2a2a2a', padding: '15px', borderRadius: '8px', opacity: tour.estActif ? 1 : 0.6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
                       <h3 style={{ margin: 0 }}>Tour {tour.numero}</h3>
                       {saison && <span style={{ fontSize: '12px', color: '#aaa' }}>{saison.nom}</span>}
                       <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '12px', backgroundColor: '#0078d4' }}>
@@ -304,24 +374,24 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
                       </span>
                     </div>
                     <p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>
-                      {tour.heurePriseService} – {tour.heureFinService}
-                      {tour.heureDepartPause && ` | Pause : ${tour.heureDepartPause} – ${tour.heureReprise}`}
+                      {tour.heurePriseService} - {tour.heureFinService}
+                      {tour.heureDepartPause && ` | Pause : ${tour.heureDepartPause} - ${tour.heureReprise}`}
                     </p>
                     {tour.lignesDestinations?.length > 0 && (
                       <p style={{ margin: '4px 0 0', color: '#ddd', fontSize: '13px' }}>
                         Lignes : {Array.isArray(tour.lignesDestinations) ? tour.lignesDestinations.join(', ') : tour.lignesDestinations}
                       </p>
                     )}
-                    {tour.primes?.length > 0 && rdtpm && (
+                    {tour.primes?.length > 0 && entrepriseCourante && (
                       <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#ddd' }}>
-                        Primes : {tour.primes.map(pid => rdtpm.primes.find(p => p.id === pid)?.nom).filter(Boolean).join(', ')}
+                        Primes : {tour.primes.map(pid => entrepriseCourante.primes.find(p => p.id === pid)?.nom).filter(Boolean).join(', ')}
                       </p>
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Switch value={tour.estActif} onChange={() => handleToggleActif(tour)} />
-                    <button onClick={e => { e.stopPropagation(); setEditingTour({ ...tour, lignesDestinations: tour.lignesDestinations ?? [] }); }} style={{ backgroundColor: '#0078d4', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer' }}>✏️</button>
-                    <button onClick={e => { e.stopPropagation(); handleDelete(tour.id); }} style={{ backgroundColor: '#ff4444', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer' }}>🗑️</button>
+                    <button onClick={e => { e.stopPropagation(); setEditingTour({ ...tour, lignesDestinations: tour.lignesDestinations ?? [] }); }} className="edit-action-button">Modifier</button>
+                    <button onClick={e => { e.stopPropagation(); handleDelete(tour.id); }} className="delete-button">Supprimer</button>
                   </div>
                 </div>
               </div>
@@ -331,7 +401,7 @@ export const ToursList = ({ tours, onToursUpdated, entreprises, rdtpmId }: Tours
       ) : (
         <div style={{ textAlign: 'center', marginTop: '40px' }}>
           <p style={{ color: '#aaa' }}>Aucun tour trouvé{showOnlyActifs ? ' (actifs uniquement)' : ''}.</p>
-          <button className="add-journee-button" onClick={() => setEditingTour({ ...NOUVEAU_TOUR, saisonId: saisons[0]?.id ?? '' })} style={{ marginTop: '10px' }}>
+          <button className="add-journee-button" onClick={handleAddTour} style={{ marginTop: '10px' }}>
             + Ajouter un tour
           </button>
         </div>

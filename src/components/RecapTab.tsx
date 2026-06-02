@@ -1,6 +1,11 @@
 // src/components/RecapTab.tsx
 import { useState, useMemo } from 'react';
-import { calculerHeuresJournee, calculerSalaireJournee, calculerStatsMois, formatDureeHHMM } from '../utils/calculs';
+import {
+  calculerHeuresJournee,
+  calculerSalaireJournee,
+  calculerStatsMois,
+  formatDureeHHMM,
+} from '../utils/calculs';
 import type { Journee, Entreprise } from '../types';
 
 type RecapTabProps = {
@@ -10,13 +15,23 @@ type RecapTabProps = {
   setSelectedDate: (date: Date) => void;
 };
 
+const formatEuros = (montant: number) => `${montant.toFixed(2)} €`;
+
+const formatSignedDuration = (minutes: number) => {
+  const sign = minutes < 0 ? '-' : '';
+  return `${sign}${formatDureeHHMM(Math.abs(minutes))}`;
+};
+
+const formatWeek = (weekStart: string) =>
+  new Date(`${weekStart}T12:00:00`).toLocaleDateString('fr-FR');
+
 export const RecapTab = ({ journees, entreprises, selectedDate, setSelectedDate }: RecapTabProps) => {
   const [selectedMonth, setSelectedMonth] = useState(selectedDate.getMonth());
   const [selectedYear, setSelectedYear] = useState(selectedDate.getFullYear());
 
   const filteredJournees = useMemo(() =>
     journees.filter(j => {
-      const d = new Date(j.date + 'T12:00:00');
+      const d = new Date(`${j.date}T12:00:00`);
       return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
     }),
     [journees, selectedMonth, selectedYear]
@@ -42,7 +57,6 @@ export const RecapTab = ({ journees, entreprises, selectedDate, setSelectedDate 
     <div className="recap-container">
       <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Récapitulatif mensuel</h2>
 
-      {/* Sélecteur de mois / année */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
         <select
           value={selectedMonth}
@@ -66,7 +80,6 @@ export const RecapTab = ({ journees, entreprises, selectedDate, setSelectedDate 
         </select>
       </div>
 
-      {/* Cartes de stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '30px' }}>
         <div className="stat-card">
           <h3>Jours travaillés</h3>
@@ -80,16 +93,70 @@ export const RecapTab = ({ journees, entreprises, selectedDate, setSelectedDate 
           </p>
         </div>
         <div className="stat-card">
+          <h3>Modulation</h3>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{formatSignedDuration(stats.modulationMinutes)}</p>
+        </div>
+        <div className="stat-card">
+          <h3>Heures supp.</h3>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{formatDureeHHMM(stats.heuresSupplementairesMinutes)}</p>
+        </div>
+        <div className="stat-card">
+          <h3>Majoration HS</h3>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{formatEuros(stats.majorationHeuresSupplementairesBrut)}</p>
+          <span style={{ fontSize: '14px', color: '#aaa' }}>Net estimé: {formatEuros(stats.majorationHeuresSupplementairesNet)}</span>
+        </div>
+        <div className="stat-card">
           <h3>Salaire brut</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.salaireBrut.toFixed(2)} €</p>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{formatEuros(stats.salaireBrut)}</p>
         </div>
         <div className="stat-card">
           <h3>Salaire net</h3>
-          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.salaireNet.toFixed(2)} €</p>
+          <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{formatEuros(stats.salaireNet)}</p>
         </div>
       </div>
 
-      {/* Tableau détaillé */}
+      {(stats.detailsModulation.length > 0 || stats.detailsHeuresSupplementaires.length > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px', marginBottom: '30px' }}>
+          <div className="stat-card">
+            <h3>Détail modulation</h3>
+            {stats.detailsModulation.length > 0 ? (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {stats.detailsModulation.map((detail, index) => {
+                  const entreprise = entreprises.find(e => e.id === detail.entrepriseId);
+                  return (
+                    <li key={`${detail.entrepriseId}-${detail.semaine}-${detail.role}-${index}`} style={{ marginBottom: '8px', color: '#ddd' }}>
+                      <strong>{entreprise?.nom || 'Entreprise'}</strong> - semaine du {formatWeek(detail.semaine)}<br />
+                      {detail.nom} ({detail.role}) : {formatSignedDuration(detail.minutes)}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p style={{ color: '#aaa' }}>Aucune modulation sur ce mois.</p>
+            )}
+          </div>
+
+          <div className="stat-card">
+            <h3>Détail heures supp.</h3>
+            {stats.detailsHeuresSupplementaires.length > 0 ? (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {stats.detailsHeuresSupplementaires.map((detail, index) => {
+                  const entreprise = entreprises.find(e => e.id === detail.entrepriseId);
+                  return (
+                    <li key={`${detail.entrepriseId}-${detail.semaine}-${detail.role}-${detail.nom}-${index}`} style={{ marginBottom: '8px', color: '#ddd' }}>
+                      <strong>{entreprise?.nom || 'Entreprise'}</strong> - semaine du {formatWeek(detail.semaine)}<br />
+                      {detail.nom} ({detail.role}) : {formatDureeHHMM(detail.minutes)} à +{detail.tauxMajoration}% = {formatEuros(detail.montantMajoration)}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p style={{ color: '#aaa' }}>Aucune heure supplémentaire sur ce mois.</p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={{ overflowX: 'auto' }}>
         <table className="recap-table">
           <thead>
@@ -98,7 +165,7 @@ export const RecapTab = ({ journees, entreprises, selectedDate, setSelectedDate 
               <th style={{ textAlign: 'left', padding: '8px' }}>Entreprise</th>
               <th style={{ textAlign: 'left', padding: '8px' }}>Rôle</th>
               <th style={{ textAlign: 'left', padding: '8px' }}>Heures</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Salaire</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Salaire jour</th>
             </tr>
           </thead>
           <tbody>
@@ -110,12 +177,12 @@ export const RecapTab = ({ journees, entreprises, selectedDate, setSelectedDate 
               return (
                 <tr key={journee.id}>
                   <td style={{ padding: '8px', borderBottom: '1px solid #333' }}>
-                    {new Date(journee.date + 'T12:00:00').toLocaleDateString('fr-FR')}
+                    {new Date(`${journee.date}T12:00:00`).toLocaleDateString('fr-FR')}
                   </td>
                   <td style={{ padding: '8px', borderBottom: '1px solid #333' }}>{entreprise.nom}</td>
                   <td style={{ padding: '8px', borderBottom: '1px solid #333' }}>{journee.role}</td>
                   <td style={{ padding: '8px', borderBottom: '1px solid #333' }}>{heures.toFixed(2)} h</td>
-                  <td style={{ padding: '8px', borderBottom: '1px solid #333' }}>{salaire.toFixed(2)} €</td>
+                  <td style={{ padding: '8px', borderBottom: '1px solid #333' }}>{formatEuros(salaire)}</td>
                 </tr>
               );
             })}

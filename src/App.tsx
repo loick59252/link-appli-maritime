@@ -11,14 +11,18 @@ import { ToursList } from './components/ToursList';
 import { EntrepriseList } from './components/EntrepriseList';
 import { SaisonsList } from './components/SaisonsList';
 import { RecapTab } from './components/RecapTab';
+import { useAppDialog } from './components/AppDialog';
 import { calculerMinutesJournee, formatDureeHHMM } from './utils/calculs';
+import { estJourneeTravaillee, getConfigStatutJournee } from './utils/statutsJournee';
 import type { Journee, Entreprise, Tour, Saison } from './types';
 
-type Tab = 'Planning' | 'Semaines' | 'Récap' | 'Entreprises' | 'Saisons' | 'Tours';
+type Tab = 'Planning' | 'Semaines' | 'RÃ©cap' | 'Entreprises';
+type EntrepriseSubTab = 'Liste' | 'Saisons' | 'Tours';
 
-const TABS: Tab[] = ['Planning', 'Semaines', 'Récap', 'Entreprises', 'Saisons', 'Tours'];
+const TABS: Tab[] = ['Planning', 'Semaines', 'RÃ©cap', 'Entreprises'];
+const ENTREPRISE_SUB_TABS: EntrepriseSubTab[] = ['Liste', 'Saisons', 'Tours'];
 
-// ────── Helpers ──────
+// â”€â”€â”€â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€
 
 const toLocalDateStr = (date: Date): string => {
   const y = date.getFullYear();
@@ -48,7 +52,7 @@ const hexToRgba = (hex: string | undefined, opacity: number): string | undefined
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-// ────── Composant SemaineView (extrait de App) ──────
+// â”€â”€â”€â”€â”€â”€ Composant SemaineView (extrait de App) â”€â”€â”€â”€â”€â”€
 
 type SemaineViewProps = {
   dateDebut: Date;
@@ -70,18 +74,19 @@ const SemaineView = ({ dateDebut, title, journees, entreprises, onEdit, onDelete
     journees.find(j => j.date === toLocalDateStr(date));
 
   const journeesSemaine = jours.map(getJourneeForDate).filter(Boolean) as Journee[];
+  const journeesTravailleesSemaine = journeesSemaine.filter(estJourneeTravaillee);
 
-  const minutesSemaine = journeesSemaine.reduce((acc, j) => acc + calculerMinutesJournee(j), 0);
+  const minutesSemaine = journeesTravailleesSemaine.reduce((acc, j) => acc + calculerMinutesJournee(j), 0);
 
   const entreprisesStats = useMemo(() => {
     const map: Record<string, { jours: number; minutes: number }> = {};
-    for (const j of journeesSemaine) {
+    for (const j of journeesTravailleesSemaine) {
       if (!map[j.entrepriseId]) map[j.entrepriseId] = { jours: 0, minutes: 0 };
       map[j.entrepriseId].jours++;
       map[j.entrepriseId].minutes += calculerMinutesJournee(j);
     }
     return map;
-  }, [journeesSemaine]);
+  }, [journeesTravailleesSemaine]);
 
   const getEntreprise = (id: string) => entreprises.find(e => e.id === id);
 
@@ -95,6 +100,8 @@ const SemaineView = ({ dateDebut, title, journees, entreprises, onEdit, onDelete
           const jourLabel = date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' });
           const entreprise = journee ? getEntreprise(journee.entrepriseId) : null;
           const minutes = journee ? calculerMinutesJournee(journee) : 0;
+          const isTravail = journee ? estJourneeTravaillee(journee) : false;
+          const statutConfig = journee ? getConfigStatutJournee(journee) : null;
 
           return (
             <div
@@ -117,22 +124,28 @@ const SemaineView = ({ dateDebut, title, journees, entreprises, onEdit, onDelete
                     {entreprise?.logo && (
                       <img src={entreprise.logo} alt="" className="entreprise-logo" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     )}
-                    <strong>{entreprise?.nom ?? 'Entreprise'}</strong>
-                    <span>{journee.role}</span>
+                    {isTravail ? (
+                      <>
+                        <strong>{entreprise?.nom ?? 'Entreprise'}</strong>
+                        <span>{journee.role}</span>
+                      </>
+                    ) : (
+                      <strong>{statutConfig?.icone} {statutConfig?.label}</strong>
+                    )}
                   </div>
                   <div className="journee-card-info">
-                    <div>⏰ {journee.heurePriseService} – {journee.heureFinService}</div>
-                    <div>{formatDureeHHMM(minutes)} ({(minutes / 60).toFixed(2)}h)</div>
+                    <div>{isTravail ? `${journee.heurePriseService} - ${journee.heureFinService}` : journee.notes || 'Journee non travaillee'}</div>
+                    {isTravail && <div>{formatDureeHHMM(minutes)} ({(minutes / 60).toFixed(2)}h)</div>}
                   </div>
                   <div className="journee-card-actions">
-                    <button className="edit-button" onClick={() => onEdit(journee)}>✏️</button>
-                    <button className="delete-button" onClick={() => onDelete(journee.id)}>🗑️</button>
+                    <button className="edit-button" onClick={() => onEdit(journee)}>âœï¸</button>
+                    <button className="delete-button" onClick={() => onDelete(journee.id)}>ðŸ—‘ï¸</button>
                   </div>
                 </div>
               ) : (
                 <div className="journee-card journee-non-travaillee semaine-journee-card">
                   <div className="journee-card-header"><strong>En repos</strong></div>
-                  <div>—</div>
+                  <div>â€”</div>
                 </div>
               )}
             </div>
@@ -141,10 +154,10 @@ const SemaineView = ({ dateDebut, title, journees, entreprises, onEdit, onDelete
       </div>
 
       <div className="week-recap">
-        <h4>Récapitulatif de la semaine</h4>
+        <h4>RÃ©capitulatif de la semaine</h4>
         <div className="stat-box">
-          <span>Jours travaillés :</span>
-          <strong>{journeesSemaine.length}</strong>
+          <span>Jours travaillÃ©s :</span>
+          <strong>{journeesTravailleesSemaine.length}</strong>
         </div>
         <div className="stat-box">
           <span>Heures totales :</span>
@@ -163,16 +176,17 @@ const SemaineView = ({ dateDebut, title, journees, entreprises, onEdit, onDelete
             );
           })
         ) : (
-          <p style={{ color: '#aaa' }}>Aucune journée cette semaine.</p>
+          <p style={{ color: '#aaa' }}>Aucune journÃ©e cette semaine.</p>
         )}
       </div>
     </div>
   );
 };
 
-// ────── App ──────
+// â”€â”€â”€â”€â”€â”€ App â”€â”€â”€â”€â”€â”€
 
 function App() {
+  const { confirm } = useAppDialog();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [journees, setJournees] = useState<Journee[]>([]);
   const [journeesSemaines, setJourneesSemaines] = useState<Journee[]>([]);
@@ -182,9 +196,10 @@ function App() {
   const [showJourneeForm, setShowJourneeForm] = useState(false);
   const [journeeToEdit, setJourneeToEdit] = useState<Journee | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('Planning');
+  const [activeEntrepriseSubTab, setActiveEntrepriseSubTab] = useState<EntrepriseSubTab>('Liste');
   const [rdtpmId, setRdtpmId] = useState<string>(localStorage.getItem('RDTPM_ID') ?? '');
 
-  // Rafraîchit toutes les données
+  // RafraÃ®chit toutes les donnÃ©es
   const refreshAllData = useCallback(async () => {
     const [entreprisesData, toursData, saisonsData] = await Promise.all([
       getEntreprises(),
@@ -202,7 +217,7 @@ function App() {
     }
   }, [rdtpmId]);
 
-  // Charge les journées du mois affiché
+  // Charge les journÃ©es du mois affichÃ©
   const loadJourneesForMonth = useCallback(async (date: Date) => {
     const journeesData = await getJourneesParMois(date.getFullYear(), date.getMonth() + 1);
     setJournees(journeesData);
@@ -248,26 +263,36 @@ function App() {
   );
 
   const handleDeleteJournee = useCallback(async (journeeId: string) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette journée ?')) return;
+    const shouldDelete = await confirm('ÃŠtes-vous sÃ»r de vouloir supprimer cette journÃ©e ?', {
+      title: 'Supprimer la journÃ©e',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (!shouldDelete) return;
     await supprimerJournee(journeeId);
     await Promise.all([
       loadJourneesForMonth(selectedDate),
       loadJourneesForWeeks(),
     ]);
-  }, [selectedDate, loadJourneesForMonth, loadJourneesForWeeks]);
+  }, [confirm, selectedDate, loadJourneesForMonth, loadJourneesForWeeks]);
 
   const handleEditJournee = useCallback((journee: Journee) => {
     setJourneeToEdit(journee);
     setShowJourneeForm(true);
   }, []);
 
-  // Journées du mois courant pour le récap
+  // JournÃ©es du mois courant pour le rÃ©cap
   const journeesDuMois = useMemo(() =>
     journees.filter(j => {
       const d = new Date(j.date + 'T12:00:00');
       return d.getMonth() === selectedDate.getMonth() && d.getFullYear() === selectedDate.getFullYear();
     }),
     [journees, selectedDate]
+  );
+
+  const journeesTravailleesDuMois = useMemo(
+    () => journeesDuMois.filter(estJourneeTravaillee),
+    [journeesDuMois]
   );
 
   const journeesDuJour = useMemo(() =>
@@ -281,11 +306,11 @@ function App() {
     return { journee, entreprise };
   }, [journees, entreprises]);
 
-  // ────── Onglets ──────
+  // â”€â”€â”€â”€â”€â”€ Onglets â”€â”€â”€â”€â”€â”€
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'Récap':
+      case 'RÃ©cap':
         return <RecapTab journees={journees} entreprises={entreprises} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />;
 
       case 'Planning':
@@ -293,7 +318,7 @@ function App() {
           <div className="planning-container">
             <h2>Planning Maritime</h2>
             <button className="add-journee-button" onClick={() => { setJourneeToEdit(null); setShowJourneeForm(true); }}>
-              Ajouter une journée
+              Ajouter une journÃ©e
             </button>
 
             <div className="calendar-container">
@@ -326,63 +351,75 @@ function App() {
               />
             </div>
 
-            <h3>Journée du {selectedDate.toLocaleDateString('fr-FR')}</h3>
+            <h3>JournÃ©e du {selectedDate.toLocaleDateString('fr-FR')}</h3>
 
             {journeesDuJour.length > 0 ? journeesDuJour.map(journee => {
               const entreprise = entreprises.find(e => e.id === journee.entrepriseId);
               const tour = journee.tourId ? tours.find(t => t.id === journee.tourId) : null;
               const minutes = calculerMinutesJournee(journee);
+              const isTravail = estJourneeTravaillee(journee);
+              const statutConfig = getConfigStatutJournee(journee);
               return (
                 <div key={journee.id} className="journee-card" style={{ borderLeftColor: getEntrepriseCouleur(journee.entrepriseId) }}>
                   <div className="journee-card-header">
                     {entreprise?.logo && <img src={entreprise.logo} alt="" className="entreprise-logo" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
-                    <strong>{entreprise?.nom ?? 'Entreprise'}</strong>
-                    <span>{journee.role}</span>
-                    {tour && <span> – Tour {tour.numero}</span>}
-                    {journee.lignesDestinations?.length && (
-                      <span> – {journee.lignesDestinations.join(', ')}</span>
+                    {isTravail ? (
+                      <>
+                        <strong>{entreprise?.nom ?? 'Entreprise'}</strong>
+                        <span>{journee.role}</span>
+                      </>
+                    ) : (
+                      <strong>{statutConfig.icone} {statutConfig.label}</strong>
+                    )}
+                    {isTravail && tour && <span> - Tour {tour.numero}</span>}
+                    {isTravail && journee.lignesDestinations?.length && (
+                      <span> - {journee.lignesDestinations.join(', ')}</span>
                     )}
                   </div>
                   <div className="journee-card-info">
-                    <div>⏰ {journee.heurePriseService} – {journee.heureFinService}
-                      {journee.heureDepartPause && ` | Pause : ${journee.heureDepartPause} – ${journee.heureReprise}`}
-                    </div>
-                    <div>{formatDureeHHMM(minutes)} ({(minutes / 60).toFixed(2)}h)</div>
-                    {journee.notes && <div>📝 {journee.notes}</div>}
+                    {isTravail ? (
+                      <>
+                        <div>{journee.heurePriseService} - {journee.heureFinService}{journee.heureDepartPause && ` | Pause : ${journee.heureDepartPause} - ${journee.heureReprise}`}</div>
+                        <div>{formatDureeHHMM(minutes)} ({(minutes / 60).toFixed(2)}h)</div>
+                      </>
+                    ) : (
+                      <div>{journee.notes || 'Journee non travaillee'}</div>
+                    )}
+                    {isTravail && journee.notes && <div>{journee.notes}</div>}
                   </div>
                   <div className="journee-card-actions">
-                    <button className="edit-button" onClick={() => handleEditJournee(journee)}>✏️</button>
-                    <button className="delete-button" onClick={() => handleDeleteJournee(journee.id)}>🗑️</button>
+                    <button className="edit-button" onClick={() => handleEditJournee(journee)}>âœï¸</button>
+                    <button className="delete-button" onClick={() => handleDeleteJournee(journee.id)}>ðŸ—‘ï¸</button>
                   </div>
                 </div>
               );
             }) : (
               <div className="journee-card journee-non-travaillee">
-                <div className="journee-card-header"><strong>Journée non travaillée</strong></div>
+                <div className="journee-card-header"><strong>JournÃ©e non travaillÃ©e</strong></div>
               </div>
             )}
 
-            {/* Récap mensuel */}
+            {/* RÃ©cap mensuel */}
             <div className="month-recap">
-              <h3>Récapitulatif — {selectedDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</h3>
+              <h3>RÃ©capitulatif â€” {selectedDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</h3>
               <div className="stat-box">
-                <span>Jours travaillés :</span>
-                <strong>{journeesDuMois.length}</strong>
+                <span>Jours travaillÃ©s :</span>
+                <strong>{journeesTravailleesDuMois.length}</strong>
               </div>
               <div className="stat-box">
                 <span>Heures totales :</span>
                 <strong>
                   {(() => {
-                    const total = journeesDuMois.reduce((acc, j) => acc + calculerMinutesJournee(j), 0);
+                    const total = journeesTravailleesDuMois.reduce((acc, j) => acc + calculerMinutesJournee(j), 0);
                     return `${formatDureeHHMM(total)} (${(total / 60).toFixed(2)}h)`;
                   })()}
                 </strong>
               </div>
               <h4>Par entreprise</h4>
               {entreprises
-                .filter(e => journeesDuMois.some(j => j.entrepriseId === e.id))
+                .filter(e => journeesTravailleesDuMois.some(j => j.entrepriseId === e.id))
                 .map(entreprise => {
-                  const jMois = journeesDuMois.filter(j => j.entrepriseId === entreprise.id);
+                  const jMois = journeesTravailleesDuMois.filter(j => j.entrepriseId === entreprise.id);
                   const total = jMois.reduce((acc, j) => acc + calculerMinutesJournee(j), 0);
                   return (
                     <div key={entreprise.id} className="entreprise-recap" style={{ borderLeftColor: entreprise.couleur ?? '#555' }}>
@@ -409,13 +446,30 @@ function App() {
       }
 
       case 'Entreprises':
-        return <EntrepriseList entreprises={entreprises} onEntreprisesUpdated={refreshAllData} rdtpmId={rdtpmId} setRdtpmId={setRdtpmId} />;
-
-      case 'Saisons':
-        return <SaisonsList saisons={saisons} onSaisonsUpdated={refreshAllData} />;
-
-      case 'Tours':
-        return <ToursList tours={tours} onToursUpdated={refreshAllData} entreprises={entreprises} rdtpmId={rdtpmId} />;
+        return (
+          <div className="entreprises-section">
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
+              {ENTREPRISE_SUB_TABS.map(tab => (
+                <button
+                  key={tab}
+                  className={`tab-button ${activeEntrepriseSubTab === tab ? 'active' : ''}`}
+                  onClick={() => setActiveEntrepriseSubTab(tab)}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            {activeEntrepriseSubTab === 'Liste' && (
+              <EntrepriseList entreprises={entreprises} onEntreprisesUpdated={refreshAllData} rdtpmId={rdtpmId} setRdtpmId={setRdtpmId} />
+            )}
+            {activeEntrepriseSubTab === 'Saisons' && (
+              <SaisonsList saisons={saisons} tours={tours} entreprises={entreprises} onSaisonsUpdated={refreshAllData} />
+            )}
+            {activeEntrepriseSubTab === 'Tours' && (
+              <ToursList tours={tours} saisons={saisons} onToursUpdated={refreshAllData} entreprises={entreprises} />
+            )}
+          </div>
+        );
 
       default:
         return null;
@@ -456,8 +510,7 @@ function App() {
             journeeToEdit={journeeToEdit}
             entreprises={entreprises}
             tours={tours}
-            rdtpmId={rdtpmId}
-            setTours={setTours}
+            saisons={saisons}
           />
         )}
       </div>
